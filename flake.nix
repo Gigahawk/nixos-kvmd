@@ -50,6 +50,13 @@
             pkgs.ustreamer
             pkgs.janus-gateway
             pkgs.glibc
+            pkgs.coreutils
+            pkgs.sudo
+            pkgs.iproute2
+            pkgs.ipmitool
+            pkgs.iptables
+            pkgs.dnsmasq
+            pkgs.systemd
           ];
 
           installPhase = ''
@@ -68,10 +75,21 @@
             sed -i 's|ctypes.util.find_library("xkbcommon")|"${pkgs.libxkbcommon}/lib/libxkbcommon.so.0"|' kvmd-src/kvmd/keyboard/printer.py
             sed -i 's|ctypes.util.find_library("c")|"${pkgs.glibc}/lib/libc.so.6"|' kvmd-src/kvmd/libc.py
 
-
+            # Patch some hardcoded paths in kvmd
+            sed -i 's|/usr/bin/ustreamer|${pkgs.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
+            sed -i 's|/usr/bin/sudo|${pkgs.sudo}/bin/sudo|' kvmd-src/kvmd/apps/__init__.py
+            sed -i 's|/usr/bin/sudo|${pkgs.sudo}/bin/sudo|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
             sed -i 's|/usr/bin/vcgencmd|${pkgs.libraspberrypi}/bin/vcgencmd|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/janus|${pkgs.janus-gateway}/bin/janus|' kvmd-src/kvmd/apps/__init__.py
-
+            sed -i 's|/usr/bin/ip|${pkgs.iproute2}/bin/ip|' kvmd-src/kvmd/apps/__init__.py
+            sed -i 's|/usr/bin/systemd-run|${pkgs.systemd}/bin/systemd-run|' kvmd-src/kvmd/apps/__init__.py
+            sed -i 's|/usr/bin/systemctl|${pkgs.systemd}/bin/systemctl|' kvmd-src/kvmd/apps/__init__.py
+            sed -i 's|/usr/sbin/iptables|${pkgs.iptables}/bin/iptables|' kvmd-src/kvmd/apps/__init__.py
+            sed -i 's|/usr/sbin/dnsmasq|${pkgs.dnsmasq}/bin/dnsmasq|' kvmd-src/kvmd/apps/__init__.py
+            sed -i 's|/usr/bin/ipmitool|${pkgs.ipmitool}/bin/ipmitool|' kvmd-src/kvmd/plugins/ugpio/ipmi.py
+            sed -i 's|/bin/true|${pkgs.coreutils}/bin/true|' kvmd-src/kvmd/apps/__init__.py
+            sed -i "s|/usr/share/kvmd/extras|$out/src/extras|" kvmd-src/kvmd/apps/__init__.py
+            sed -i "s|/usr/share/kvmd/keymaps|$out/src/contrib/keymaps|" kvmd-src/kvmd/apps/__init__.py
           '';
 
           meta = with lib; {
@@ -90,7 +108,7 @@
           text = ''
           KVMD_SRC=${self.packages.${system}.kvmd-src}/src
           pushd $KVMD_SRC
-          python -m kvmd.apps.kvmd
+          python -m kvmd.apps.kvmd "$@"
           popd
           '';
         };
@@ -109,184 +127,189 @@
         ];
       };
     }) // {
-      #nixosModule = { lib, pkgs, config, ... }:
-      #  with lib;
-      #  let
-      #    cfg = config.services.inventree;
-      #    settingsFormat = pkgs.formats.json { };
-      #    defaultUser = "inventree";
-      #    defaultGroup = defaultUser;
-      #    configFile = pkgs.writeText "config.yaml" (builtins.toJSON cfg.config);
-      #    usersFile = pkgs.writeText "users.json" (builtins.toJSON cfg.users);
-      #  in
-      #  {
-      #    options.services.inventree = {
-      #      enable = mkEnableOption
-      #        (lib.mdDoc "Open Source Inventory Management System");
+      nixosModule = { lib, pkgs, config, ... }:
+        with lib;
+        let
+          cfg = config.services.kvmd;
+          settingsFormat = pkgs.formats.json { };
+          defaultUser = "kvmd";
+          defaultGroup = defaultUser;
+          #configFile = pkgs.writeText "config.yaml" (builtins.toJSON cfg.config);
+          #usersFile = pkgs.writeText "users.json" (builtins.toJSON cfg.users);
+        in
+        {
+          options.services.kvmd = {
+            enable = mkEnableOption
+              (lib.mdDoc "The main PiKVM daemon");
 
-      #      #user = mkOption {
-      #      #  type = types.str;
-      #      #  default = defaultUser;
-      #      #  example = "yourUser";
-      #      #  description = mdDoc ''
-      #      #    The user to run InvenTree as.
-      #      #    By default, a user named `${defaultUser}` will be created whose home
-      #      #    directory is [dataDir](#opt-services.inventree.dataDir).
-      #      #  '';
-      #      #};
+            ipmiPasswordFile = mkOption {
+              type = types.path;
+              description = mdDoc ''
+                Path to the IPMI credentials file
 
-      #      #group = mkOption {
-      #      #  type = types.str;
-      #      #  default = defaultGroup;
-      #      #  example = "yourGroup";
-      #      #  description = mdDoc ''
-      #      #    The group to run Syncthing under.
-      #      #    By default, a group named `${defaultGroup}` will be created.
-      #      #  '';
-      #      #};
+                For more information see:
+                https://github.com/pikvm/kvmd/blob/master/configs/kvmd/ipmipasswd
+              '';
+            };
 
-      #      serverBind = mkOption {
-      #        type = types.str;
-      #        default = "127.0.0.1:8000";
-      #        example = "0.0.0.0:1337";
-      #        description = lib.mdDoc ''
-      #          The address and port the server will bind to.
-      #          (nginx should point to this address if running in production mode)
-      #        '';
-      #      };
+            vncPasswordFile = mkOption {
+              type = types.path;
+              description = mdDoc ''
+                Path to the VNCAuth credentials file
 
-      #      dataDir = mkOption {
-      #        type = types.str;
-      #        default = "/var/lib/inventree";
-      #        example = "/home/yourUser";
-      #        description = lib.mdDoc ''
-      #          The default path for all inventree data.
-      #        '';
-      #      };
+                For more information see:
+                https://github.com/pikvm/kvmd/blob/master/configs/kvmd/vncpasswd
+              '';
+            };
 
-      #      configPath = mkOption {
-      #        type = types.str;
-      #        default = cfg.dataDir + "/config.yaml";
-      #        description = lib.mdDoc ''
-      #          Path to config.yaml (automatically created)
-      #        '';
-      #      };
+            vncSslKeyFile = mkOption {
+              type = types.path;
+              description = mdDoc ''
+                Path to an SSL key for the VNC server
+              '';
+            };
 
-      #      config = mkOption {
-      #        type = types.attrs;
-      #        default = {};
-      #        description = lib.mdDoc ''
-      #          Config options, see https://docs.inventree.org/en/stable/start/config/
-      #          for details
-      #        '';
-      #      };
+            vncSslCertFile = mkOption {
+              type = types.path;
+              description = mdDoc ''
+                Path to an SSL certificate for the VNC server
+              '';
+            };
 
-      #      users = mkOption {
-      #        default = {};
-      #        description = mdDoc ''
-      #          Users which should be present on the InvenTree server
-      #        '';
-      #        example = {
-      #          admin = {
-      #            email = "admin@localhost";
-      #            is_superuser = true;
-      #            password_file = /path/to/passwordfile;
-      #          };
-      #        };
-      #        type = types.attrsOf (types.submodule ({ name, ... }: {
-      #          freeformType = settingsFormat.type;
-      #          options = {
-      #            name = mkOption {
-      #              type = types.str;
-      #              default = name;
-      #              description = lib.mdDoc ''
-      #                The name of the user
-      #              '';
-      #            };
+            htPasswordFile = mkOption {
+              type = types.path;
+              description = mdDoc ''
+                Path to the htpasswd file
 
-      #            password_file = mkOption {
-      #              type = types.path;
-      #              description = lib.mdDoc ''
-      #                The path to the password file for the user
-      #              '';
-      #            };
+                For more information see:
+                https://github.com/pikvm/kvmd/blob/master/configs/kvmd/htpasswd
+              '';
+            };
 
-      #            is_superuser = mkOption {
-      #              type = types.bool;
-      #              default = false;
-      #              description = lib.mdDoc ''
-      #                Set to true to create the account as a superuser
-      #              '';
-      #            };
-      #          };
-      #        }));
-      #      };
-      #    };
+            #user = mkOption {
+            #  type = types.str;
+            #  default = defaultUser;
+            #  example = "yourUser";
+            #  description = mdDoc ''
+            #    The user to run InvenTree as.
+            #    By default, a user named `${defaultUser}` will be created whose home
+            #    directory is [dataDir](#opt-services.inventree.dataDir).
+            #  '';
+            #};
 
-      #    config = mkIf cfg.enable ({
-      #      environment.systemPackages = [
-      #        self.packages.${pkgs.system}.inventree-invoke
-      #      ];
+            #group = mkOption {
+            #  type = types.str;
+            #  default = defaultGroup;
+            #  example = "yourGroup";
+            #  description = mdDoc ''
+            #    The group to run Syncthing under.
+            #    By default, a group named `${defaultGroup}` will be created.
+            #  '';
+            #};
 
-      #      users.users.${defaultUser} = {
-      #        group = defaultGroup;
-      #        # Is this important?
-      #        #uid = config.ids.uids.inventree;
-      #        # Seems to be required with no uid set
-      #        isSystemUser = true;
-      #        description = "InvenTree daemon user";
-      #      };
+            baseConfig = mkOption {
+              type = types.str;
+              default = "v4plus-hdmi-rpi4.yaml";
+              description = lib.mdDoc ''
+                The base config file to use for kvmd
+              '';
+            };
+          };
 
-      #      users.groups.${defaultGroup} = {
-      #        # Is this important?
-      #        #gid = config.ids.gids.inventree;
-      #      };
+          config = mkIf cfg.enable ({
+            environment.systemPackages = [
+              self.packages.${pkgs.system}.kvmd
+            ];
 
-      #      systemd.services.inventree-server = {
-      #        description = "InvenTree service";
-      #        wantedBy = [ "multi-user.target" ];
-      #        environment = {
-      #          INVENTREE_CONFIG_FILE = toString cfg.configPath;
-      #        };
-      #        serviceConfig = {
-      #          User = defaultUser;
-      #          Group = defaultGroup;
-      #          ExecStartPre =
-      #            "+${pkgs.writers.writeBash "inventree-setup" ''
-      #              echo "Creating config file"
-      #              mkdir -p "$(dirname "${toString cfg.configPath}")"
-      #              cp ${configFile} ${toString cfg.configPath}
+            users.users.${defaultUser} = {
+              group = defaultGroup;
+              # Is this important?
+              #uid = config.ids.uids.inventree;
+              # Seems to be required with no uid set
+              isSystemUser = true;
+              description = "kvmd daemon user";
+            };
 
-      #              echo "Running database migrations"
-      #              ${self.packages.${pkgs.system}.inventree-invoke}/bin/inventree-invoke migrate
+            users.groups.${defaultGroup} = {
+              # Is this important?
+              #gid = config.ids.gids.inventree;
+            };
 
-      #              echo "Ensuring static files are populated"
-      #              ${self.packages.${pkgs.system}.inventree-invoke}/bin/inventree-invoke static
+            environment.etc = {
+              "kvmd/main.yaml" = {
+                source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/main/${cfg.baseConfig};
+              };
+              "kvmd/logging.yaml" = {
+                source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/logging.yaml;
+              };
+              "kvmd/auth.yaml" = {
+                source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/auth.yaml;
+              };
+              "kvmd/meta.yaml" = {
+                source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/meta.yaml;
+              };
+              "kvmd/ipmipasswd" = {
+                source = cfg.ipmiPasswordFile;
+              };
+              "kvmd/htpasswd" = {
+                source = cfg.htPasswordFile;
+              };
+              "kvmd/vncpasswd" = {
+                source = cfg.vncPasswordFile;
+              };
+              "kvmd/vnc/ssl/server.crt" = {
+                source = cfg.vncSslCertFile;
+              };
+              "kvmd/vnc/ssl/server.key" = {
+                source = cfg.vncSslKeyFile;
+              };
+            };
 
-      #              echo "Setting up users"
-      #              cat ${usersFile} | \
-      #                ${self.packages.${pkgs.system}.inventree-refresh-users}/bin/inventree-refresh-users
-      #            ''}";
-      #          ExecStart = ''
-      #            ${self.packages.${pkgs.system}.inventree-server}/bin/inventree-server -b ${cfg.serverBind}
-      #          '';
-      #        };
-      #      };
-      #      systemd.services.inventree-cluster = {
-      #        description = "InvenTree background worker";
-      #        wantedBy = [ "multi-user.target" ];
-      #        environment = {
-      #          INVENTREE_CONFIG_FILE = toString cfg.configPath;
-      #        };
-      #        serviceConfig = {
-      #          User = defaultUser;
-      #          Group = defaultGroup;
-      #          ExecStart = ''
-      #            ${self.packages.${pkgs.system}.inventree-cluster}/bin/inventree-cluster
-      #          '';
-      #        };
-      #      };
-      #    });
-      #  };
+            #systemd.services.inventree-server = {
+            #  description = "InvenTree service";
+            #  wantedBy = [ "multi-user.target" ];
+            #  environment = {
+            #    INVENTREE_CONFIG_FILE = toString cfg.configPath;
+            #  };
+            #  serviceConfig = {
+            #    User = defaultUser;
+            #    Group = defaultGroup;
+            #    ExecStartPre =
+            #      "+${pkgs.writers.writeBash "inventree-setup" ''
+            #        echo "Creating config file"
+            #        mkdir -p "$(dirname "${toString cfg.configPath}")"
+            #        cp ${configFile} ${toString cfg.configPath}
+
+            #        echo "Running database migrations"
+            #        ${self.packages.${pkgs.system}.inventree-invoke}/bin/inventree-invoke migrate
+
+            #        echo "Ensuring static files are populated"
+            #        ${self.packages.${pkgs.system}.inventree-invoke}/bin/inventree-invoke static
+
+            #        echo "Setting up users"
+            #        cat ${usersFile} | \
+            #          ${self.packages.${pkgs.system}.inventree-refresh-users}/bin/inventree-refresh-users
+            #      ''}";
+            #    ExecStart = ''
+            #      ${self.packages.${pkgs.system}.inventree-server}/bin/inventree-server -b ${cfg.serverBind}
+            #    '';
+            #  };
+            #};
+            #systemd.services.inventree-cluster = {
+            #  description = "InvenTree background worker";
+            #  wantedBy = [ "multi-user.target" ];
+            #  environment = {
+            #    INVENTREE_CONFIG_FILE = toString cfg.configPath;
+            #  };
+            #  serviceConfig = {
+            #    User = defaultUser;
+            #    Group = defaultGroup;
+            #    ExecStart = ''
+            #      ${self.packages.${pkgs.system}.inventree-cluster}/bin/inventree-cluster
+            #    '';
+            #  };
+            #};
+          });
+        };
     };
 }
