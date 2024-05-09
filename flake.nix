@@ -4,7 +4,9 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
     # HACK: ustreamer 6.11 is pending merge of nixpkgs#308216
-    nixpkgs-temp.url = "github:r-ryantm/nixpkgs/auto-update/ustreamer";
+    nixpkgs-ustreamer.url = "github:r-ryantm/nixpkgs/auto-update/ustreamer";
+    # HACK: wiringpi is really old on nixpkgs
+    nixpkgs-wiringpi.url = "github:Gigahawk/nixpkgs/update-wiringpi";
     flake-utils = {
       url = "github:numtide/flake-utils";
     };
@@ -13,12 +15,15 @@
     };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-temp, flake-utils, pip2nix, ... }:
+  outputs = { self, nixpkgs, nixpkgs-ustreamer, nixpkgs-wiringpi, flake-utils, pip2nix, ... }:
     flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = nixpkgs.legacyPackages.${system};
-      pkgs-temp = nixpkgs-temp.legacyPackages.${system};
-      version = "v3.333";
+      pkgs-ustreamer = nixpkgs-ustreamer.legacyPackages.${system};
+      pkgs-wiringpi = nixpkgs-wiringpi.legacyPackages.${system};
+
+      kvmd-version = "v3.333";
+      kvmd-fan-version = "v0.30";
 
       #pythonOverrides = pkgs.callPackage ./python-overrides.nix { };
       #customOverrides = pkgs.callPackage ./custom-overrides.nix { };
@@ -33,13 +38,13 @@
         kvmd-src = with import nixpkgs { inherit system; };
         stdenv.mkDerivation rec {
           pname = "kvmd-src";
-          inherit version;
+          version = kvmd-version;
           srcs = [
             (pkgs.fetchFromGitHub {
               name = "kvmd-src";
               owner = "pikvm";
               repo = "kvmd";
-              rev = version;
+              rev = kvmd-version;
               hash = "sha256-oWdutzyP36An9Ff+QjWZtahKiXcSboWn+qmymkbKL+A=";
             })
           ];
@@ -52,7 +57,7 @@
             pkgs.tesseract
             pkgs.libraspberrypi
             #pkgs.ustreamer
-            pkgs-temp.ustreamer
+            pkgs-ustreamer.ustreamer
             pkgs.janus-gateway
             pkgs.glibc
             pkgs.coreutils
@@ -82,7 +87,7 @@
 
             # Patch some hardcoded paths in kvmd
             #sed -i 's|/usr/bin/ustreamer|${pkgs.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
-            sed -i 's|/usr/bin/ustreamer|${pkgs-temp.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
+            sed -i 's|/usr/bin/ustreamer|${pkgs-ustreamer.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
             sed -i 's|/usr/bin/sudo|${pkgs.sudo}/bin/sudo|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/sudo|${pkgs.sudo}/bin/sudo|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
             sed -i 's|/usr/bin/vcgencmd|${pkgs.libraspberrypi}/bin/vcgencmd|' kvmd-src/kvmd/apps/__init__.py
@@ -102,6 +107,43 @@
           meta = with lib; {
             homepage = "https://github.com/pikvm/kvmd";
             description = "The main PiKVM daemon";
+            license = licenses.gpl3;
+            platforms = platforms.all;
+          };
+        };
+        kvmd-fan = with import nixpkgs { inherit system; };
+        stdenv.mkDerivation rec {
+          pname = "kvmd-fan";
+          version = kvmd-fan-version;
+          srcs = [
+            (pkgs.fetchFromGitHub {
+              name = "kvmd-fan";
+              owner = "pikvm";
+              repo = "kvmd-fan";
+              rev = kvmd-fan-version;
+              hash = "sha256-jKoiIl0n19bL0xzGjwNJCKnqwBlSBQ774X89ETG5S1c=";
+            })
+          ];
+
+          nativeBuildInputs = with pkgs; [
+            pkg-config
+          ];
+
+          buildInputs = [
+            pkgs-wiringpi.wiringpi
+            #pkgs.wiringpi
+            pkgs.libgpiod
+            pkgs.iniparser
+            pkgs.libmicrohttpd
+          ];
+
+          installPhase = ''
+            make install PREFIX="" DESTDIR=$out
+          '';
+
+          meta = with lib; {
+            homepage = "https://github.com/pikvm/kvmd-fan";
+            description = "A small fan controller daemon for PiKVM";
             license = licenses.gpl3;
             platforms = platforms.all;
           };
@@ -129,7 +171,7 @@
           pkgs.libxkbcommon
           pkgs.tesseract
           pkgs.libraspberrypi
-          pkgs-temp.ustreamer
+          pkgs-ustreamer.ustreamer
           pkgs.janus-gateway
         ];
       };
@@ -243,6 +285,7 @@
           config = mkIf cfg.enable ({
             environment.systemPackages = [
               self.packages.${pkgs.system}.kvmd
+              self.packages.${pkgs.system}.kvmd-fan
             ];
 
             users.users.${defaultUser} = {

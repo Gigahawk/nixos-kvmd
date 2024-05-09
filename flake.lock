@@ -51,7 +51,7 @@
         "type": "indirect"
       }
     },
-    "nixpkgs-temp": {
+    "nixpkgs-ustreamer": {
       "locked": {
         "lastModified": 1714553215,
         "narHash": "sha256-vLFtS2WyJopiYTNbQ0+eBd8mFWb2wXH56V8AoQy5nko=",
@@ -63,6 +63,22 @@
       "original": {
         "owner": "r-ryantm",
         "ref": "auto-update/ustreamer",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-wiringpi": {
+      "locked": {
+        "lastModified": 1715231385,
+        "narHash": "sha256-eNlxOv5ydSwoKW5sVtVB+6ARwjCawRN0JN5aaTlgTzA=",
+        "owner": "Gigahawk",
+        "repo": "nixpkgs",
+        "rev": "0fee6d55a69ba1e8b7ce9317d6df777a4dcec3f3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Gigahawk",
+        "ref": "update-wiringpi",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -106,7 +122,8 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
-        "nixpkgs-temp": "nixpkgs-temp",
+        "nixpkgs-ustreamer": "nixpkgs-ustreamer",
+        "nixpkgs-wiringpi": "nixpkgs-wiringpi",
         "pip2nix": "pip2nix"
       }
     },
