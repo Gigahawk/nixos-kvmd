@@ -199,6 +199,12 @@
               '';
             };
 
+            allowMmap = mkEnableOption
+              (lib.mdDoc ''
+                Set iomem=relaxed and strict-devmem=0.
+                Required for GPIO fan access on Raspberry Pi 4
+              '');
+
             ipmiPasswordFile = mkOption {
               type = types.path;
               description = mdDoc ''
@@ -301,6 +307,13 @@
               # Is this important?
               #gid = config.ids.gids.inventree;
             };
+
+            boot = mkIf cfg.allowMmap ({
+              kernelParams = [
+                "iomem=relaxed"
+                "strict-devmem=0"
+              ];
+            });
 
             environment.etc = {
               "kvmd/main.yaml" = {
