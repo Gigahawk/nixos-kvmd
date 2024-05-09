@@ -3,6 +3,8 @@
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
+    # HACK: ustreamer 6.11 is pending merge of nixpkgs#308216
+    nixpkgs-temp.url = "github:r-ryantm/nixpkgs/auto-update/ustreamer";
     flake-utils = {
       url = "github:numtide/flake-utils";
     };
@@ -11,10 +13,11 @@
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, pip2nix, ... }:
+  outputs = { self, nixpkgs, nixpkgs-temp, flake-utils, pip2nix, ... }:
     flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = nixpkgs.legacyPackages.${system};
+      pkgs-temp = nixpkgs-temp.legacyPackages.${system};
       version = "v3.333";
 
       #pythonOverrides = pkgs.callPackage ./python-overrides.nix { };
@@ -24,6 +27,7 @@
       python = pkgs.python3;
       pythonPackages = import ./python-requirements.nix;
       pythonWithPackages = python.withPackages pythonPackages;
+
     in {
       packages = {
         kvmd-src = with import nixpkgs { inherit system; };
@@ -47,7 +51,8 @@
             pkgs.libxkbcommon
             pkgs.tesseract
             pkgs.libraspberrypi
-            pkgs.ustreamer
+            #pkgs.ustreamer
+            pkgs-temp.ustreamer
             pkgs.janus-gateway
             pkgs.glibc
             pkgs.coreutils
@@ -76,7 +81,8 @@
             sed -i 's|ctypes.util.find_library("c")|"${pkgs.glibc}/lib/libc.so.6"|' kvmd-src/kvmd/libc.py
 
             # Patch some hardcoded paths in kvmd
-            sed -i 's|/usr/bin/ustreamer|${pkgs.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
+            #sed -i 's|/usr/bin/ustreamer|${pkgs.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
+            sed -i 's|/usr/bin/ustreamer|${pkgs-temp.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
             sed -i 's|/usr/bin/sudo|${pkgs.sudo}/bin/sudo|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/sudo|${pkgs.sudo}/bin/sudo|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
             sed -i 's|/usr/bin/vcgencmd|${pkgs.libraspberrypi}/bin/vcgencmd|' kvmd-src/kvmd/apps/__init__.py
@@ -123,7 +129,7 @@
           pkgs.libxkbcommon
           pkgs.tesseract
           pkgs.libraspberrypi
-          pkgs.ustreamer
+          pkgs-temp.ustreamer
           pkgs.janus-gateway
         ];
       };

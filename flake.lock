@@ -38,17 +38,33 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1713714899,
-        "narHash": "sha256-+z/XjO3QJs5rLE5UOf015gdVauVRQd2vZtsFkaXBq2Y=",
+        "lastModified": 1715087517,
+        "narHash": "sha256-CLU5Tsg24Ke4+7sH8azHWXKd0CFd4mhLWfhYgUiDBpQ=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "6143fc5eeb9c4f00163267708e26191d1e918932",
+        "rev": "b211b392b8486ee79df6cdfb1157ad2133427a29",
         "type": "github"
       },
       "original": {
         "id": "nixpkgs",
         "ref": "nixos-unstable",
         "type": "indirect"
+      }
+    },
+    "nixpkgs-temp": {
+      "locked": {
+        "lastModified": 1714553215,
+        "narHash": "sha256-vLFtS2WyJopiYTNbQ0+eBd8mFWb2wXH56V8AoQy5nko=",
+        "owner": "r-ryantm",
+        "repo": "nixpkgs",
+        "rev": "651e173f70c9ccba75b1a02a8e216cdd99cb85f2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "r-ryantm",
+        "ref": "auto-update/ustreamer",
+        "repo": "nixpkgs",
+        "type": "github"
       }
     },
     "nixpkgs_2": {
@@ -90,6 +106,7 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
+        "nixpkgs-temp": "nixpkgs-temp",
         "pip2nix": "pip2nix"
       }
     },
