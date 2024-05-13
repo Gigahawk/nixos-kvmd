@@ -161,6 +161,19 @@
           popd
           '';
         };
+        kvmd-otg = with import nixpkgs { inherit system; };
+        pkgs.writeShellApplication rec {
+          name = "kvmd-otg";
+
+          runtimeInputs = self.packages.${system}.kvmd-src.propagatedBuildInputs;
+
+          text = ''
+          KVMD_SRC=${self.packages.${system}.kvmd-src}/src
+          pushd $KVMD_SRC
+          python -m kvmd.apps.otg "$@"
+          popd
+          '';
+        };
       };
       devShell = pkgs.mkShell {
         inputsFrom = [
@@ -308,6 +321,7 @@
           config = mkIf cfg.enable ({
             environment.systemPackages = [
               self.packages.${pkgs.system}.kvmd
+              self.packages.${pkgs.system}.kvmd-otg
               self.packages.${pkgs.system}.kvmd-fan
             ];
 
