@@ -286,6 +286,23 @@
                 The base config file to use for kvmd
               '';
             };
+
+            fanArgs = mkOption {
+              type = types.str;
+              default = "";
+              description = lib.mdDoc ''
+                Arguments to pass to kvmd-fan on startup
+              '';
+            };
+
+            fanConfig = mkOption {
+              type = with types; either str path;
+              default = "v4plus-hdmi.ini";
+              apply = val: if builtins.isPath val then val else self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/fan/${val};
+              description = lib.mdDoc ''
+                The config file to use for kvmd fan
+              '';
+            };
           };
 
           config = mkIf cfg.enable ({
@@ -325,6 +342,9 @@
               # TODO: is there a way to just have a blank folder?
               "kvmd/override.d/.ignore"= {
                 text = "";
+              };
+              "kvmd/fan.ini" = {
+                source = cfg.fanConfig;
               };
               "kvmd/logging.yaml" = {
                 source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/logging.yaml;
@@ -534,6 +554,20 @@
             # directories in `/run`. Else it will fail with (13: Permission denied)
             systemd.services.nginx.serviceConfig.ProtectHome = false;
 
+            systemd.services.kvmd-fan = {
+              description = "PiKVM - A small fan controller daemon";
+              after = [ "systemd-modules-load.service" ];
+              serviceConfig = {
+                Type = "simple";
+                Restart = "always";
+                RestartSec = 3;
+                ExecStart = ''
+                  ${self.packages.${pkgs.system}.kvmd-fan}/bin/kvmd-fan --config=/etc/kvmd/fan.ini ${cfg.fanArgs}
+                '';
+                TimeoutStopSec = 3;
+              };
+              wantedBy = [ "multi-user.target" ];
+            };
             #systemd.services.inventree-server = {
             #  description = "InvenTree service";
             #  wantedBy = [ "multi-user.target" ];
