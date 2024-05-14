@@ -582,6 +582,22 @@
               };
               wantedBy = [ "multi-user.target" ];
             };
+            systemd.services.kvmd-otg = {
+              description = "PiKVM - OTG setup";
+              after = [ "systemd-modules-load.service" ];
+              # before = [ "kvmd.service" ];
+              serviceConfig = {
+                Type = "oneshot";
+                ExecStart = ''
+                  ${self.packages.${pkgs.system}.kvmd-otg}/bin/kvmd-otg start
+                '';
+                ExecStop = ''
+                  ${self.packages.${pkgs.system}.kvmd-otg}/bin/kvmd-otg stop
+                '';
+                RemainAfterExit = true;
+              };
+              wantedBy = [ "multi-user.target" ];
+            };
             #systemd.services.inventree-server = {
             #  description = "InvenTree service";
             #  wantedBy = [ "multi-user.target" ];
