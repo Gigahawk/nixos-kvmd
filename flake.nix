@@ -599,8 +599,9 @@
               description = "PiKVM - A small fan controller daemon";
               after = [ "systemd-modules-load.service" ];
               serviceConfig = {
-                User = defaultUser;
-                Group = defaultGroup;
+                # kvmd-otg has to run as root to access /dev/mem
+                User = "root";
+                Group = "root";
                 Type = "simple";
                 Restart = "always";
                 RestartSec = 3;
