@@ -328,6 +328,18 @@
             users.groups.${defaultGroup} = {
               # Is this important?
               #gid = config.ids.gids.inventree;
+              # Allow nginx to read data
+              members = [ "nginx" ];
+            };
+
+            # Add kvmd to groups for hardware access
+            # TODO: gpiod isn't a standard group on NixOS,
+            # is there a more idiomatic way to do this?
+            users.groups.gpiod = {
+              members = [ "kvmd" ];
+            };
+            users.groups.video = {
+              members = [ "kvmd" ];
             };
 
             boot = mkIf cfg.allowMmap ({
@@ -379,9 +391,9 @@
                 source = cfg.vncSslKeyFile;
               };
             };
-            # TODO: this should have the correct user permissions
             systemd.tmpfiles.rules = [
-              "d /run/kvmd 0777 root root"
+              # Execute bit is required for some reason?
+              "d /run/kvmd 0770 kvmd kvmd"
             ];
 
             services.nginx = {
@@ -563,6 +575,8 @@
               description = "PiKVM - A small fan controller daemon";
               after = [ "systemd-modules-load.service" ];
               serviceConfig = {
+                User = defaultUser;
+                Group = defaultGroup;
                 Type = "simple";
                 Restart = "always";
                 RestartSec = 3;
@@ -578,6 +592,9 @@
               after = [ "systemd-modules-load.service" ];
               # before = [ "kvmd.service" ];
               serviceConfig = {
+                # kvmd-otg has to run as root to modify sysfs
+                User = "root";
+                Group = "root";
                 Type = "oneshot";
                 ExecStart = ''
                   ${self.packages.${pkgs.system}.kvmd-otg}/bin/kvmd-otg start
