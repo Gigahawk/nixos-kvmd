@@ -307,6 +307,15 @@
                 The config file to use for kvmd fan
               '';
             };
+
+            udevRules = mkOption {
+              type = with types; either str path;
+              default = "v4plus-hdmi-rpi4.rules";
+              apply = val: if builtins.isPath val then val else self.packages.${pkgs.system}.kvmd-src + /src/configs/os/udev/${val};
+              description = lib.mdDoc ''
+                The config file to use for kvmd fan
+              '';
+            };
           };
 
           config = mkIf cfg.enable ({
@@ -315,6 +324,21 @@
               self.packages.${pkgs.system}.kvmd-otg
               self.packages.${pkgs.system}.kvmd-fan
             ];
+
+            services.udev = {
+              enable = true;
+              extraRules = lib.strings.concatLines [
+                # Seems like this has something to do with allowing access
+                # to an RP2040 acting as an HID emulator
+                (builtins.readFile (self.packages.${pkgs.system}.kvmd-src + /src/configs/os/udev/common.rules))
+                # User selected set of rules
+                (builtins.readFile cfg.udevRules)
+                # Allow video user to access RPi VideoCore interface
+                ''KERNEL=="vchiq", GROUP="video", MODE="0660"''
+                # Allow GPIO to be controlled by users in gpiod group
+                ''SUBSYSTEM=="gpio", KERNEL=="gpiochip[0-4]", GROUP="gpiod", MODE="0660"''
+              ];
+            };
 
             users.users.${defaultUser} = {
               group = defaultGroup;
