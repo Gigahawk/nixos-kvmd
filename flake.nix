@@ -10,12 +10,9 @@
     flake-utils = {
       url = "github:numtide/flake-utils";
     };
-    pip2nix = {
-      url = "github:nix-community/pip2nix";
-    };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-ustreamer, nixpkgs-wiringpi, flake-utils, pip2nix, ... }:
+  outputs = { self, nixpkgs, nixpkgs-ustreamer, nixpkgs-wiringpi, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = nixpkgs.legacyPackages.${system};
@@ -25,10 +22,6 @@
       kvmd-version = "v3.333";
       kvmd-fan-version = "v0.30";
 
-      #pythonOverrides = pkgs.callPackage ./python-overrides.nix { };
-      #customOverrides = pkgs.callPackage ./custom-overrides.nix { };
-      #packageOverrides = nixpkgs.lib.composeManyExtensions [ pythonOverrides customOverrides ];
-      #python = pkgs.python3.override { inherit packageOverrides; };
       python = pkgs.python3;
       pythonPackages = import ./python-requirements.nix;
       pythonWithPackages = python.withPackages pythonPackages;
@@ -179,7 +172,6 @@
         inputsFrom = [
         ];
         nativeBuildInputs = [
-          #pip2nix.packages.${system}.pip2nix.python39
           pythonWithPackages
           pkgs.libxkbcommon
           pkgs.tesseract
@@ -197,7 +189,6 @@
           defaultUser = "kvmd";
           defaultGroup = defaultUser;
           overrideFile = pkgs.writeText "override.yaml" (builtins.toJSON cfg.overrides);
-          #usersFile = pkgs.writeText "users.json" (builtins.toJSON cfg.users);
         in
         {
           options.services.kvmd = {
@@ -598,50 +589,6 @@
               };
               wantedBy = [ "multi-user.target" ];
             };
-            #systemd.services.inventree-server = {
-            #  description = "InvenTree service";
-            #  wantedBy = [ "multi-user.target" ];
-            #  environment = {
-            #    INVENTREE_CONFIG_FILE = toString cfg.configPath;
-            #  };
-            #  serviceConfig = {
-            #    User = defaultUser;
-            #    Group = defaultGroup;
-            #    ExecStartPre =
-            #      "+${pkgs.writers.writeBash "inventree-setup" ''
-            #        echo "Creating config file"
-            #        mkdir -p "$(dirname "${toString cfg.configPath}")"
-            #        cp ${configFile} ${toString cfg.configPath}
-
-            #        echo "Running database migrations"
-            #        ${self.packages.${pkgs.system}.inventree-invoke}/bin/inventree-invoke migrate
-
-            #        echo "Ensuring static files are populated"
-            #        ${self.packages.${pkgs.system}.inventree-invoke}/bin/inventree-invoke static
-
-            #        echo "Setting up users"
-            #        cat ${usersFile} | \
-            #          ${self.packages.${pkgs.system}.inventree-refresh-users}/bin/inventree-refresh-users
-            #      ''}";
-            #    ExecStart = ''
-            #      ${self.packages.${pkgs.system}.inventree-server}/bin/inventree-server -b ${cfg.serverBind}
-            #    '';
-            #  };
-            #};
-            #systemd.services.inventree-cluster = {
-            #  description = "InvenTree background worker";
-            #  wantedBy = [ "multi-user.target" ];
-            #  environment = {
-            #    INVENTREE_CONFIG_FILE = toString cfg.configPath;
-            #  };
-            #  serviceConfig = {
-            #    User = defaultUser;
-            #    Group = defaultGroup;
-            #    ExecStart = ''
-            #      ${self.packages.${pkgs.system}.inventree-cluster}/bin/inventree-cluster
-            #    '';
-            #  };
-            #};
           });
         };
     };
