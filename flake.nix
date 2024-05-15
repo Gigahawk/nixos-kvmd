@@ -89,6 +89,7 @@
           };
         };
         kvmd-src = self.packages.${system}.kvmd-src-unpatched.overrideAttrs (old: {
+          pname = "kvmd-src";
           patchPhase = ''
             # HACK: patch ctypes.util.find_library calls because nixpkgs#7307 is somehow not fixed yet
             sed -i 's|ctypes.util.find_library("tesseract")|"${pkgs.tesseract}/lib/libtesseract.so.5"|' kvmd-src/kvmd/apps/kvmd/ocr.py
