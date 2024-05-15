@@ -24,10 +24,13 @@
 
       helperScript = name: pkgs.writeText "kvmd-helper.py" ''
         import re
+        import os
         import sys
+        # Hack to allow importing kvmd from script outside of kvmd-src
+        sys.path.insert(0, os.getcwd())
         from kvmd.helpers.remount import main
         if __name__ == '__main__':
-            sys.argv[0] = ${name}
+            sys.argv[0] = '${name}'
             sys.exit(main())
       '';
 
@@ -36,7 +39,7 @@
       pythonWithPackages = python.withPackages pythonPackages;
     in {
       packages = {
-        # unpatched variant to work around circular references
+        # variant missing some patches to work around circular references
         kvmd-src-unpatched = with import nixpkgs { inherit system; };
         stdenv.mkDerivation rec {
           pname = "kvmd-src-unpatched";
@@ -80,17 +83,9 @@
 
             runHook postInstall
           '';
-
-          meta = with lib; {
-            homepage = "https://github.com/pikvm/kvmd";
-            description = "The main PiKVM daemon";
-            license = licenses.gpl3;
-            platforms = platforms.all;
-          };
-        };
-        kvmd-src = self.packages.${system}.kvmd-src-unpatched.overrideAttrs (old: {
-          pname = "kvmd-src";
           patchPhase = ''
+            runHook prePatch
+
             # HACK: patch ctypes.util.find_library calls because nixpkgs#7307 is somehow not fixed yet
             sed -i 's|ctypes.util.find_library("tesseract")|"${pkgs.tesseract}/lib/libtesseract.so.5"|' kvmd-src/kvmd/apps/kvmd/ocr.py
             sed -i 's|ctypes.util.find_library("xkbcommon")|"${pkgs.libxkbcommon}/lib/libxkbcommon.so.0"|' kvmd-src/kvmd/keyboard/printer.py
@@ -99,9 +94,9 @@
             # Patch some hardcoded paths in kvmd
             #sed -i 's|/usr/bin/ustreamer|${pkgs.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
             sed -i 's|/usr/bin/ustreamer|${pkgs-ustreamer.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
-            sed -i 's|/usr/bin/sudo|${pkgs.sudo}/bin/sudo|' kvmd-src/kvmd/apps/__init__.py
-            sed -i 's|/usr/bin/sudo|${pkgs.sudo}/bin/sudo|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
-            sed -i 's|/usr/bin/kvmd-helper-otgmsd-remount|${self.packages.${system}.kvmd-helper-otgmsd-remount}/bin/kvmd-helper-otgmsd-remount|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
+            sed -i 's|/usr/bin/sudo|/run/wrappers/bin/sudo|' kvmd-src/kvmd/apps/__init__.py
+            sed -i 's|/usr/bin/sudo|/run/wrappers/bin/sudo|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
+            sed -i 's|/bin/mount|${pkgs.mount}/bin/mount|' kvmd-src/kvmd/helpers/remount/__init__.py
             sed -i 's|/usr/bin/vcgencmd|${pkgs.libraspberrypi}/bin/vcgencmd|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/janus|${pkgs.janus-gateway}/bin/janus|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/ip|${pkgs.iproute2}/bin/ip|' kvmd-src/kvmd/apps/__init__.py
@@ -114,6 +109,22 @@
             sed -i "s|/usr/share/kvmd/extras|$out/src/extras|" kvmd-src/kvmd/apps/__init__.py
             sed -i "s|/usr/share/kvmd/keymaps|$out/src/contrib/keymaps|" kvmd-src/kvmd/apps/__init__.py
             sed -i "s|/usr/share/tessdata|${pkgs.tesseract}/share/tessdata|" kvmd-src/kvmd/apps/__init__.py
+
+            runHook postPatch
+          '';
+
+          meta = with lib; {
+            homepage = "https://github.com/pikvm/kvmd";
+            description = "The main PiKVM daemon";
+            license = licenses.gpl3;
+            platforms = platforms.all;
+          };
+        };
+        kvmd-src = self.packages.${system}.kvmd-src-unpatched.overrideAttrs (old: {
+          pname = "kvmd-src";
+          postPatch = ''
+            # Patches requiring references to downstream kvmd packages
+            sed -i 's|/usr/bin/kvmd-helper-otgmsd-remount|${self.packages.${system}.kvmd-helper-otgmsd-remount}/bin/kvmd-helper-otgmsd-remount|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
           '';
         });
         kvmd-fan = with import nixpkgs { inherit system; };
@@ -188,7 +199,7 @@
           text = ''
           KVMD_SRC=${self.packages.${system}.kvmd-src-unpatched}/src
           pushd $KVMD_SRC
-          python ${helperScript name}
+          python ${helperScript name} "$@"
           popd
           '';
         };
@@ -440,6 +451,21 @@
                 source = cfg.vncSslKeyFile;
               };
             };
+
+            security.sudo = {
+              enable = true;
+              extraRules = [{
+                commands = [
+                  {
+                    command = "${self.packages.${pkgs.system}.kvmd-helper-otgmsd-remount}/bin/kvmd-helper-otgmsd-remount";
+                    options = [ "NOPASSWD" ];
+                  }
+                ];
+                users = [ "kvmd" ];
+                groups = [ "kvmd" ];
+              }];
+            };
+
             systemd.tmpfiles.rules = [
               # Execute bit is required for some reason?
               "d /run/kvmd 0770 kvmd kvmd"
