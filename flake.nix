@@ -22,15 +22,24 @@
       kvmd-version = "v3.333";
       kvmd-fan-version = "v0.30";
 
+      helperScript = name: pkgs.writeText "kvmd-helper.py" ''
+        import re
+        import sys
+        from kvmd.helpers.remount import main
+        if __name__ == '__main__':
+            sys.argv[0] = ${name}
+            sys.exit(main())
+      '';
+
       python = pkgs.python3;
       pythonPackages = import ./python-requirements.nix;
       pythonWithPackages = python.withPackages pythonPackages;
-
     in {
       packages = {
-        kvmd-src = with import nixpkgs { inherit system; };
+        # unpatched variant to work around circular references
+        kvmd-src-unpatched = with import nixpkgs { inherit system; };
         stdenv.mkDerivation rec {
-          pname = "kvmd-src";
+          pname = "kvmd-src-unpatched";
           version = kvmd-version;
           srcs = [
             (pkgs.fetchFromGitHub {
@@ -72,6 +81,14 @@
             runHook postInstall
           '';
 
+          meta = with lib; {
+            homepage = "https://github.com/pikvm/kvmd";
+            description = "The main PiKVM daemon";
+            license = licenses.gpl3;
+            platforms = platforms.all;
+          };
+        };
+        kvmd-src = self.packages.${system}.kvmd-src-unpatched.overrideAttrs (old: {
           patchPhase = ''
             # HACK: patch ctypes.util.find_library calls because nixpkgs#7307 is somehow not fixed yet
             sed -i 's|ctypes.util.find_library("tesseract")|"${pkgs.tesseract}/lib/libtesseract.so.5"|' kvmd-src/kvmd/apps/kvmd/ocr.py
@@ -83,6 +100,7 @@
             sed -i 's|/usr/bin/ustreamer|${pkgs-ustreamer.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
             sed -i 's|/usr/bin/sudo|${pkgs.sudo}/bin/sudo|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/sudo|${pkgs.sudo}/bin/sudo|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
+            sed -i 's|/usr/bin/kvmd-helper-otgmsd-remount|${self.packages.${system}.kvmd-helper-otgmsd-remount}/bin/kvmd-helper-otgmsd-remount|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
             sed -i 's|/usr/bin/vcgencmd|${pkgs.libraspberrypi}/bin/vcgencmd|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/janus|${pkgs.janus-gateway}/bin/janus|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/ip|${pkgs.iproute2}/bin/ip|' kvmd-src/kvmd/apps/__init__.py
@@ -96,14 +114,7 @@
             sed -i "s|/usr/share/kvmd/keymaps|$out/src/contrib/keymaps|" kvmd-src/kvmd/apps/__init__.py
             sed -i "s|/usr/share/tessdata|${pkgs.tesseract}/share/tessdata|" kvmd-src/kvmd/apps/__init__.py
           '';
-
-          meta = with lib; {
-            homepage = "https://github.com/pikvm/kvmd";
-            description = "The main PiKVM daemon";
-            license = licenses.gpl3;
-            platforms = platforms.all;
-          };
-        };
+        });
         kvmd-fan = with import nixpkgs { inherit system; };
         stdenv.mkDerivation rec {
           pname = "kvmd-fan";
@@ -164,6 +175,19 @@
           KVMD_SRC=${self.packages.${system}.kvmd-src}/src
           pushd $KVMD_SRC
           python -m kvmd.apps.otg "$@"
+          popd
+          '';
+        };
+        kvmd-helper-otgmsd-remount = with import nixpkgs { inherit system; };
+        pkgs.writeShellApplication rec {
+          name = "kvmd-helper-otgmsd-remount";
+
+          runtimeInputs = self.packages.${system}.kvmd-src-unpatched.propagatedBuildInputs;
+
+          text = ''
+          KVMD_SRC=${self.packages.${system}.kvmd-src-unpatched}/src
+          pushd $KVMD_SRC
+          python ${helperScript name}
           popd
           '';
         };
