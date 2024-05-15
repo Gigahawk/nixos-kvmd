@@ -96,7 +96,6 @@
             sed -i 's|/usr/bin/ustreamer|${pkgs-ustreamer.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
             sed -i 's|/usr/bin/sudo|/run/wrappers/bin/sudo|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/sudo|/run/wrappers/bin/sudo|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
-            sed -i 's|/bin/mount|${pkgs.mount}/bin/mount|' kvmd-src/kvmd/helpers/remount/__init__.py
             sed -i 's|/usr/bin/vcgencmd|${pkgs.libraspberrypi}/bin/vcgencmd|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/janus|${pkgs.janus-gateway}/bin/janus|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/ip|${pkgs.iproute2}/bin/ip|' kvmd-src/kvmd/apps/__init__.py
@@ -109,6 +108,11 @@
             sed -i "s|/usr/share/kvmd/extras|$out/src/extras|" kvmd-src/kvmd/apps/__init__.py
             sed -i "s|/usr/share/kvmd/keymaps|$out/src/contrib/keymaps|" kvmd-src/kvmd/apps/__init__.py
             sed -i "s|/usr/share/tessdata|${pkgs.tesseract}/share/tessdata|" kvmd-src/kvmd/apps/__init__.py
+
+            # HACK: patch remount script to do umount then mount, using remount on an image file doesn't seem to work properly
+            sed -i \
+              's|subprocess.check_call(\["/bin/mount", "--options", f"remount,{mode}", path\])|subprocess.check_call(["${pkgs.util-linux}/bin/umount", path]);subprocess.check_call(["${pkgs.util-linux}/bin/mount", "--options", f"{mode}", path])|' \
+              kvmd-src/kvmd/helpers/remount/__init__.py
 
             runHook postPatch
           '';
