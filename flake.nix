@@ -72,6 +72,7 @@
             pkgs.iptables
             pkgs.dnsmasq
             pkgs.systemd
+            pkgs.v4l-utils
           ];
 
           installPhase = ''
@@ -369,6 +370,15 @@
               apply = val: if builtins.isPath val then val else self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/fan/${val};
               description = lib.mdDoc ''
                 The config file to use for kvmd fan
+              '';
+            };
+
+            edidConfig = mkOption {
+              type = with types; either str path;
+              default = "v4plus-hdmi.hex";
+              apply = val: if builtins.isPath val then val else self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/edid/${val};
+              description = lib.mdDoc ''
+                The EDID hex file to use for HDMI to CSI adapters
               '';
             };
 
@@ -740,6 +750,33 @@
                     '';
                     ExecStop = ''
                       ${self.packages.${pkgs.system}.kvmd-otg}/bin/kvmd-otg stop
+                    '';
+                    RemainAfterExit = true;
+                  };
+                  wantedBy = [ "multi-user.target" ];
+                };
+                systemd.services.kvmd-tc358743 = {
+                  description = "PiKVM - EDID loader for TC358743";
+                  # What is dev-kvmd\x2dvideo.device?
+                  wants = [
+                    # "dev-kvmd\x2dvideo.device"
+                  ];
+                  after = [
+                    # "dev-kvmd\x2dvideo.device"
+                    "systemd-modules-load.service"
+                  ];
+                  before = [
+                    "kvmd.service"
+                    # TODO: support pass through?
+                    # "kvmd-pass.service"
+                  ];
+                  serviceConfig = {
+                    Type = "oneshot";
+                    ExecStart = ''
+                      ${pkgs.v4l-utils}/bin/v4l2-ctl --device=/dev/kvmd-video --set-edid=file=${cfg.edidConfig} --fix-edid-checksums --info-edid
+                    '';
+                    ExecStop= ''
+                      ${pkgs.v4l-utils}/bin/v4l2-ctl --device=/dev/kvmd-video --clear-edid
                     '';
                     RemainAfterExit = true;
                   };
