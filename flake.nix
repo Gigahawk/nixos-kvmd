@@ -460,12 +460,14 @@
                   members = [ "kvmd" ];
                 };
 
-                boot = mkIf cfg.allowMmap ({
-                  kernelParams = [
+                boot = {
+                  # Enable USB emulation
+                  kernelModules = [ "libcomposite" ];
+                  kernelParams = mkIf cfg.allowMmap ([
                     "iomem=relaxed"
                     "strict-devmem=0"
-                  ];
-                });
+                  ]);
+                };
 
                 environment.etc = {
                   "kvmd/main.yaml" = {
