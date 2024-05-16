@@ -194,6 +194,19 @@
           popd
           '';
         };
+        kvmd-cleanup = with import nixpkgs { inherit system; };
+        pkgs.writeShellApplication rec {
+          name = "kvmd-cleanup";
+
+          runtimeInputs = self.packages.${system}.kvmd-src.propagatedBuildInputs;
+
+          text = ''
+          KVMD_SRC=${self.packages.${system}.kvmd-src}/src
+          pushd $KVMD_SRC
+          python -m kvmd.apps.cleanup "$@"
+          popd
+          '';
+        };
         kvmd-helper-otgmsd-remount = with import nixpkgs { inherit system; };
         pkgs.writeShellApplication rec {
           name = "kvmd-helper-otgmsd-remount";
@@ -714,7 +727,7 @@
                 systemd.services.kvmd-otg = {
                   description = "PiKVM - OTG setup";
                   after = [ "systemd-modules-load.service" ];
-                  # before = [ "kvmd.service" ];
+                  before = [ "kvmd.service" ];
                   serviceConfig = {
                     # kvmd-otg has to run as root to modify sysfs
                     User = "root";
@@ -727,6 +740,32 @@
                       ${self.packages.${pkgs.system}.kvmd-otg}/bin/kvmd-otg stop
                     '';
                     RemainAfterExit = true;
+                  };
+                  wantedBy = [ "multi-user.target" ];
+                };
+                systemd.services.kvmd = {
+                  description = "PiKVM - The main daemon";
+                  after = [
+                    "network.target"
+                    "network-online.target"
+                    "nss-lookup.target"
+                  ];
+                  serviceConfig = {
+                    User = "kvmd";
+                    Group = "kvmd";
+                    Type = "simple";
+                    Restart = "always";
+                    RestartSec = 3;
+                    AmbientCapabilities = "CAP_NET_RAW";
+
+                    ExecStart = ''
+                      ${self.packages.${pkgs.system}.kvmd}/bin/kvmd --run
+                    '';
+                    ExecStopPost = ''
+                      ${self.packages.${pkgs.system}.kvmd-cleanup}/bin/kvmd-cleanup --run
+                    '';
+                    TimeoutStopSec = 10;
+                    KillMode = "mixed";
                   };
                   wantedBy = [ "multi-user.target" ];
                 };
