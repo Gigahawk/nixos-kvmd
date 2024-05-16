@@ -251,6 +251,7 @@
 
             ipmiPasswordFile = mkOption {
               type = types.path;
+              default = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/ipmipasswd;
               description = mdDoc ''
                 Path to the IPMI credentials file
 
@@ -261,6 +262,7 @@
 
             vncPasswordFile = mkOption {
               type = types.path;
+              default = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/vncpasswd;
               description = mdDoc ''
                 Path to the VNCAuth credentials file
 
@@ -285,11 +287,20 @@
 
             htPasswordFile = mkOption {
               type = types.path;
+              default = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/htpasswd;
               description = mdDoc ''
                 Path to the htpasswd file
 
                 For more information see:
                 https://github.com/pikvm/kvmd/blob/master/configs/kvmd/htpasswd
+              '';
+            };
+
+            totpSecretFile = mkOption {
+              type = types.path;
+              default = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/totp.secret;
+              description = mdDoc ''
+                Path to a file containing a base32 encoded TOTP secret
               '';
             };
 
@@ -474,6 +485,9 @@
                   };
                   "kvmd/htpasswd" = {
                     source = cfg.htPasswordFile;
+                  };
+                  "kvmd/totp.secret" = {
+                    source = cfg.totpSecretFile;
                   };
                   "kvmd/vncpasswd" = {
                     source = cfg.vncPasswordFile;
