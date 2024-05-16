@@ -356,337 +356,392 @@
                 The config file to use for kvmd fan
               '';
             };
+
+            createMsdImage = mkEnableOption (
+              lib.mdDoc ''
+                Create an ext4 image file for MSD emulation
+
+                IMPORTANT: Requires rebuilding the SD image
+              '');
+            msdImageSize = mkOption {
+              type = types.str;
+              default = "4G";
+              description = lib.mdDoc ''
+                Size of the image for MSD emulation
+              '';
+            };
+            msdImagePath = mkOption {
+              type = types.str;
+              default = "/media/msd.img";
+              description = lib.mdDoc ''
+                Path to generate the image file at
+              '';
+            };
+            msdImageDepends = mkOption {
+              type = types.listOf types.str;
+              default = [ "/" ];
+              description = lib.mdDoc ''
+                Filesystems to mount before mounting the MSD emulation image
+              '';
+            };
           };
 
-          config = mkIf cfg.enable ({
-            environment.systemPackages = [
-              self.packages.${pkgs.system}.kvmd
-              self.packages.${pkgs.system}.kvmd-otg
-              self.packages.${pkgs.system}.kvmd-fan
-            ];
-
-            services.udev = {
-              enable = true;
-              extraRules = lib.strings.concatLines [
-                # Seems like this has something to do with allowing access
-                # to an RP2040 acting as an HID emulator
-                (builtins.readFile (self.packages.${pkgs.system}.kvmd-src + /src/configs/os/udev/common.rules))
-                # User selected set of rules
-                (builtins.readFile cfg.udevRules)
-                # Allow video user to access RPi VideoCore interface
-                ''KERNEL=="vchiq", GROUP="video", MODE="0660"''
-                # Allow GPIO to be controlled by users in gpiod group
-                ''SUBSYSTEM=="gpio", KERNEL=="gpiochip[0-4]", GROUP="gpiod", MODE="0660"''
-              ];
-            };
-
-            users.users.${defaultUser} = {
-              group = defaultGroup;
-              # Is this important?
-              #uid = config.ids.uids.inventree;
-              # Seems to be required with no uid set
-              isSystemUser = true;
-              description = "kvmd daemon user";
-            };
-
-            users.groups.${defaultGroup} = {
-              # Is this important?
-              #gid = config.ids.gids.inventree;
-              # Allow nginx to read data
-              members = [ "nginx" ];
-            };
-
-            # Add kvmd to groups for hardware access
-            # TODO: gpiod isn't a standard group on NixOS,
-            # is there a more idiomatic way to do this?
-            users.groups.gpiod = {
-              members = [ "kvmd" ];
-            };
-            users.groups.video = {
-              members = [ "kvmd" ];
-            };
-
-            boot = mkIf cfg.allowMmap ({
-              kernelParams = [
-                "iomem=relaxed"
-                "strict-devmem=0"
-              ];
-            });
-
-            environment.etc = {
-              "kvmd/main.yaml" = {
-                source = cfg.baseConfig;
-              };
-              "kvmd/override.yaml" = {
-                source = overrideFile;
-              };
-              # TODO: is there a way to just have a blank folder?
-              "kvmd/override.d/.ignore"= {
-                text = "";
-              };
-              "kvmd/fan.ini" = {
-                source = cfg.fanConfig;
-              };
-              "kvmd/logging.yaml" = {
-                source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/logging.yaml;
-              };
-              "kvmd/auth.yaml" = {
-                source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/auth.yaml;
-              };
-              "kvmd/meta.yaml" = {
-                source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/meta.yaml;
-              };
-              "kvmd/web.css" = {
-                source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/web.css;
-              };
-              "kvmd/ipmipasswd" = {
-                source = cfg.ipmiPasswordFile;
-              };
-              "kvmd/htpasswd" = {
-                source = cfg.htPasswordFile;
-              };
-              "kvmd/vncpasswd" = {
-                source = cfg.vncPasswordFile;
-              };
-              "kvmd/vnc/ssl/server.crt" = {
-                source = cfg.vncSslCertFile;
-              };
-              "kvmd/vnc/ssl/server.key" = {
-                source = cfg.vncSslKeyFile;
-              };
-            };
-
-            security.sudo = {
-              enable = true;
-              extraRules = [{
-                commands = [
-                  {
-                    command = "${self.packages.${pkgs.system}.kvmd-helper-otgmsd-remount}/bin/kvmd-helper-otgmsd-remount";
-                    options = [ "NOPASSWD" ];
-                  }
+          config = mkIf cfg.enable (
+            mkMerge [
+              {
+                environment.systemPackages = [
+                  self.packages.${pkgs.system}.kvmd
+                  self.packages.${pkgs.system}.kvmd-otg
+                  self.packages.${pkgs.system}.kvmd-fan
                 ];
-                users = [ "kvmd" ];
-                groups = [ "kvmd" ];
-              }];
-            };
 
-            systemd.tmpfiles.rules = [
-              # Execute bit is required for some reason?
-              "d /run/kvmd 0770 kvmd kvmd"
-            ];
+                services.udev = {
+                  enable = true;
+                  extraRules = lib.strings.concatLines [
+                    # Seems like this has something to do with allowing access
+                    # to an RP2040 acting as an HID emulator
+                    (builtins.readFile (self.packages.${pkgs.system}.kvmd-src + /src/configs/os/udev/common.rules))
+                    # User selected set of rules
+                    (builtins.readFile cfg.udevRules)
+                    # Allow video user to access RPi VideoCore interface
+                    ''KERNEL=="vchiq", GROUP="video", MODE="0660"''
+                    # Allow GPIO to be controlled by users in gpiod group
+                    ''SUBSYSTEM=="gpio", KERNEL=="gpiochip[0-4]", GROUP="gpiod", MODE="0660"''
+                  ];
+                };
 
-            services.nginx = {
-              enable = true;
-              upstreams = {
-                kvmd.servers = {
-                  "unix:/run/kvmd/kvmd.sock" = {
-                    fail_timeout = "0s";
-                    max_fails = 0;
+                users.users.${defaultUser} = {
+                  group = defaultGroup;
+                  # Is this important?
+                  #uid = config.ids.uids.inventree;
+                  # Seems to be required with no uid set
+                  isSystemUser = true;
+                  description = "kvmd daemon user";
+                };
+
+                users.groups.${defaultGroup} = {
+                  # Is this important?
+                  #gid = config.ids.gids.inventree;
+                  # Allow nginx to read data
+                  members = [ "nginx" ];
+                };
+
+                # Add kvmd to groups for hardware access
+                # TODO: gpiod isn't a standard group on NixOS,
+                # is there a more idiomatic way to do this?
+                users.groups.gpiod = {
+                  members = [ "kvmd" ];
+                };
+                users.groups.video = {
+                  members = [ "kvmd" ];
+                };
+
+                boot = mkIf cfg.allowMmap ({
+                  kernelParams = [
+                    "iomem=relaxed"
+                    "strict-devmem=0"
+                  ];
+                });
+
+                environment.etc = {
+                  "kvmd/main.yaml" = {
+                    source = cfg.baseConfig;
+                  };
+                  "kvmd/override.yaml" = {
+                    source = overrideFile;
+                  };
+                  # TODO: is there a way to just have a blank folder?
+                  "kvmd/override.d/.ignore"= {
+                    text = "";
+                  };
+                  "kvmd/fan.ini" = {
+                    source = cfg.fanConfig;
+                  };
+                  "kvmd/logging.yaml" = {
+                    source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/logging.yaml;
+                  };
+                  "kvmd/auth.yaml" = {
+                    source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/auth.yaml;
+                  };
+                  "kvmd/meta.yaml" = {
+                    source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/meta.yaml;
+                  };
+                  "kvmd/web.css" = {
+                    source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/web.css;
+                  };
+                  "kvmd/ipmipasswd" = {
+                    source = cfg.ipmiPasswordFile;
+                  };
+                  "kvmd/htpasswd" = {
+                    source = cfg.htPasswordFile;
+                  };
+                  "kvmd/vncpasswd" = {
+                    source = cfg.vncPasswordFile;
+                  };
+                  "kvmd/vnc/ssl/server.crt" = {
+                    source = cfg.vncSslCertFile;
+                  };
+                  "kvmd/vnc/ssl/server.key" = {
+                    source = cfg.vncSslKeyFile;
                   };
                 };
-                ustreamer.servers = {
-                  "unix:/run/kvmd/ustreamer.sock" = {
-                    fail_timeout = "0s";
-                    max_fails = 0;
+
+                security.sudo = {
+                  enable = true;
+                  extraRules = [{
+                    commands = [
+                      {
+                        command = "${self.packages.${pkgs.system}.kvmd-helper-otgmsd-remount}/bin/kvmd-helper-otgmsd-remount";
+                        options = [ "NOPASSWD" ];
+                      }
+                    ];
+                    users = [ "kvmd" ];
+                    groups = [ "kvmd" ];
+                  }];
+                };
+
+                systemd.tmpfiles.rules = [
+                  # Execute bit is required for some reason?
+                  "d /run/kvmd 0770 kvmd kvmd"
+                ];
+
+                services.nginx = {
+                  enable = true;
+                  upstreams = {
+                    kvmd.servers = {
+                      "unix:/run/kvmd/kvmd.sock" = {
+                        fail_timeout = "0s";
+                        max_fails = 0;
+                      };
+                    };
+                    ustreamer.servers = {
+                      "unix:/run/kvmd/ustreamer.sock" = {
+                        fail_timeout = "0s";
+                        max_fails = 0;
+                      };
+                    };
+                  };
+                  virtualHosts."${cfg.hostName}" = {
+                    extraConfig = ''
+                      absolute_redirect off;
+                      index index.html;
+                      auth_request /auth_check;
+                    '';
+                    locations = {
+                      "= /auth_check" = {
+                        extraConfig = ''
+                          internal;
+                          proxy_pass http://kvmd/auth/check;
+                          proxy_pass_request_body off;
+                          proxy_set_header Content-Length "";
+                          auth_request off;
+                        '';
+                      };
+                      "/" = {
+                        root = self.packages.${pkgs.system}.kvmd-src + /src/web;
+                        extraConfig = ''
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-login.conf};
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
+                        '';
+                      };
+                      "@login" = {
+                        return = "302 /login";
+                      };
+                      "/login" = {
+                        root = self.packages.${pkgs.system}.kvmd-src + /src/web;
+                        extraConfig = ''
+                          auth_request off;
+                        '';
+                      };
+                      "/share" = {
+                        root = self.packages.${pkgs.system}.kvmd-src + /src/web;
+                        extraConfig = ''
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
+                          auth_request off;
+                        '';
+                      };
+                      "= /share/css/user.css" = {
+                        alias = "/etc/kvmd/web.css";
+                        extraConfig = ''
+                          auth_request off;
+                        '';
+                      };
+                      "= /favicon.ico" = {
+                        alias = self.packages.${pkgs.system}.kvmd-src + /src/web/favicon.ico;
+                        extraConfig = ''
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
+                          auth_request off;
+                        '';
+                      };
+                      "= /robots.txt" = {
+                        alias = self.packages.${pkgs.system}.kvmd-src + /src/web/robots.txt;
+                        extraConfig = ''
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
+                          auth_request off;
+                        '';
+                      };
+                      "/api/ws" = {
+                        extraConfig = ''
+                          rewrite ^/api/ws$ /ws break;
+                          rewrite ^/api/ws\?(.*)$ /ws?$1 break;
+                          proxy_pass http://kvmd;
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-websocket.conf};
+                          auth_request off;
+                        '';
+                      };
+                      "/api/hid/print" = {
+                        extraConfig = ''
+                          rewrite ^/api/hid/print$ /hid/print break;
+                          rewrite ^/api/hid/print\?(.*)$ /hid/print?$1 break;
+                          proxy_pass http://kvmd;
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-bigpost.conf};
+                          auth_request off;
+                        '';
+                      };
+                      "/api/msd/read" = {
+                        extraConfig = ''
+                          rewrite ^/api/msd/read$ /msd/read break;
+                          rewrite ^/api/msd/read\?(.*)$ /msd/read?$1 break;
+                          proxy_pass http://kvmd;
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
+                          proxy_read_timeout 7d;
+                          auth_request off;
+                        '';
+                      };
+                      "/api/msd/write_remote" = {
+                        extraConfig = ''
+                          rewrite ^/api/msd/write_remote$ /msd/write_remote break;
+                          rewrite ^/api/msd/write_remote\?(.*)$ /msd/write_remote?$1 break;
+                          proxy_pass http://kvmd;
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
+                          proxy_read_timeout 7d;
+                          auth_request off;
+                        '';
+                      };
+                      "/api/msd/write" = {
+                        extraConfig = ''
+                          rewrite ^/api/msd/write$ /msd/write break;
+                          rewrite ^/api/msd/write\?(.*)$ /msd/write?$1 break;
+                          proxy_pass http://kvmd;
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-bigpost.conf};
+                          auth_request off;
+                        '';
+                      };
+                      "/api/log" = {
+                        extraConfig = ''
+                          rewrite ^/api/log$ /log break;
+                          rewrite ^/api/log\?(.*)$ /log?$1 break;
+                          proxy_pass http://kvmd;
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
+                          proxy_read_timeout 7d;
+                          auth_request off;
+                        '';
+                      };
+                      "/api" = {
+                        extraConfig = ''
+                          rewrite ^/api$ / break;
+                          rewrite ^/api/(.*)$ /$1 break;
+                          proxy_pass http://kvmd;
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          auth_request off;
+                        '';
+                      };
+                      "/streamer" = {
+                        extraConfig = ''
+                          rewrite ^/streamer$ / break;
+                          rewrite ^/streamer\?(.*)$ ?$1 break;
+                          rewrite ^/streamer/(.*)$ /$1 break;
+                          proxy_pass http://ustreamer;
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
+                        '';
+                      };
+                      "/redfish" = {
+                        extraConfig = ''
+                          rewrite ^/streamer$ / break;
+                          rewrite ^/streamer\?(.*)$ ?$1 break;
+                          rewrite ^/streamer/(.*)$ /$1 break;
+                          proxy_pass http://ustreamer;
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
+                        '';
+                      };
+                    };
                   };
                 };
-              };
-              virtualHosts."${cfg.hostName}" = {
-                extraConfig = ''
-                  absolute_redirect off;
-                  index index.html;
-                  auth_request /auth_check;
+
+                # This is needed for nginx to be able to read other processes
+                # directories in `/run`. Else it will fail with (13: Permission denied)
+                systemd.services.nginx.serviceConfig.ProtectHome = false;
+
+                systemd.services.kvmd-fan = {
+                  description = "PiKVM - A small fan controller daemon";
+                  after = [ "systemd-modules-load.service" ];
+                  serviceConfig = {
+                    # kvmd-otg has to run as root to access /dev/mem
+                    User = "root";
+                    Group = "root";
+                    Type = "simple";
+                    Restart = "always";
+                    RestartSec = 3;
+                    ExecStart = ''
+                      ${self.packages.${pkgs.system}.kvmd-fan}/bin/kvmd-fan --config=/etc/kvmd/fan.ini ${cfg.fanArgs}
+                    '';
+                    TimeoutStopSec = 3;
+                  };
+                  wantedBy = [ "multi-user.target" ];
+                };
+                systemd.services.kvmd-otg = {
+                  description = "PiKVM - OTG setup";
+                  after = [ "systemd-modules-load.service" ];
+                  # before = [ "kvmd.service" ];
+                  serviceConfig = {
+                    # kvmd-otg has to run as root to modify sysfs
+                    User = "root";
+                    Group = "root";
+                    Type = "oneshot";
+                    ExecStart = ''
+                      ${self.packages.${pkgs.system}.kvmd-otg}/bin/kvmd-otg start
+                    '';
+                    ExecStop = ''
+                      ${self.packages.${pkgs.system}.kvmd-otg}/bin/kvmd-otg stop
+                    '';
+                    RemainAfterExit = true;
+                  };
+                  wantedBy = [ "multi-user.target" ];
+                };
+              }
+              (mkIf cfg.createMsdImage {
+                sdImage.populateRootCommands = ''
+                  echo "Creating kvmd USB MSD image file"
+                  mkdir -p ./files/$(${pkgs.coreutils}/bin/dirname ${cfg.msdImagePath})
+                  ${pkgs.coreutils}/bin/truncate --size=4G ./files/${cfg.msdImagePath}
+                  ${pkgs.e2fsprogs}/bin/mkfs.ext4 ./files/media/msd.img
                 '';
-                locations = {
-                  "= /auth_check" = {
-                    extraConfig = ''
-                      internal;
-                      proxy_pass http://kvmd/auth/check;
-                      proxy_pass_request_body off;
-                      proxy_set_header Content-Length "";
-                      auth_request off;
-                    '';
-                  };
-                  "/" = {
-                    root = self.packages.${pkgs.system}.kvmd-src + /src/web;
-                    extraConfig = ''
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-login.conf};
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
-                    '';
-                  };
-                  "@login" = {
-                    return = "302 /login";
-                  };
-                  "/login" = {
-                    root = self.packages.${pkgs.system}.kvmd-src + /src/web;
-                    extraConfig = ''
-                      auth_request off;
-                    '';
-                  };
-                  "/share" = {
-                    root = self.packages.${pkgs.system}.kvmd-src + /src/web;
-                    extraConfig = ''
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
-                      auth_request off;
-                    '';
-                  };
-                  "= /share/css/user.css" = {
-                    alias = "/etc/kvmd/web.css";
-                    extraConfig = ''
-                      auth_request off;
-                    '';
-                  };
-                  "= /favicon.ico" = {
-                    alias = self.packages.${pkgs.system}.kvmd-src + /src/web/favicon.ico;
-                    extraConfig = ''
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
-                      auth_request off;
-                    '';
-                  };
-                  "= /robots.txt" = {
-                    alias = self.packages.${pkgs.system}.kvmd-src + /src/web/robots.txt;
-                    extraConfig = ''
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
-                      auth_request off;
-                    '';
-                  };
-                  "/api/ws" = {
-                    extraConfig = ''
-                      rewrite ^/api/ws$ /ws break;
-                      rewrite ^/api/ws\?(.*)$ /ws?$1 break;
-                      proxy_pass http://kvmd;
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-websocket.conf};
-                      auth_request off;
-                    '';
-                  };
-                  "/api/hid/print" = {
-                    extraConfig = ''
-                      rewrite ^/api/hid/print$ /hid/print break;
-                      rewrite ^/api/hid/print\?(.*)$ /hid/print?$1 break;
-                      proxy_pass http://kvmd;
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-bigpost.conf};
-                      auth_request off;
-                    '';
-                  };
-                  "/api/msd/read" = {
-                    extraConfig = ''
-                      rewrite ^/api/msd/read$ /msd/read break;
-                      rewrite ^/api/msd/read\?(.*)$ /msd/read?$1 break;
-                      proxy_pass http://kvmd;
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
-                      proxy_read_timeout 7d;
-                      auth_request off;
-                    '';
-                  };
-                  "/api/msd/write_remote" = {
-                    extraConfig = ''
-                      rewrite ^/api/msd/write_remote$ /msd/write_remote break;
-                      rewrite ^/api/msd/write_remote\?(.*)$ /msd/write_remote?$1 break;
-                      proxy_pass http://kvmd;
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
-                      proxy_read_timeout 7d;
-                      auth_request off;
-                    '';
-                  };
-                  "/api/msd/write" = {
-                    extraConfig = ''
-                      rewrite ^/api/msd/write$ /msd/write break;
-                      rewrite ^/api/msd/write\?(.*)$ /msd/write?$1 break;
-                      proxy_pass http://kvmd;
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-bigpost.conf};
-                      auth_request off;
-                    '';
-                  };
-                  "/api/log" = {
-                    extraConfig = ''
-                      rewrite ^/api/log$ /log break;
-                      rewrite ^/api/log\?(.*)$ /log?$1 break;
-                      proxy_pass http://kvmd;
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
-                      proxy_read_timeout 7d;
-                      auth_request off;
-                    '';
-                  };
-                  "/api" = {
-                    extraConfig = ''
-                      rewrite ^/api$ / break;
-                      rewrite ^/api/(.*)$ /$1 break;
-                      proxy_pass http://kvmd;
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                      auth_request off;
-                    '';
-                  };
-                  "/streamer" = {
-                    extraConfig = ''
-                      rewrite ^/streamer$ / break;
-                      rewrite ^/streamer\?(.*)$ ?$1 break;
-                      rewrite ^/streamer/(.*)$ /$1 break;
-                      proxy_pass http://ustreamer;
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
-                    '';
-                  };
-                  "/redfish" = {
-                    extraConfig = ''
-                      rewrite ^/streamer$ / break;
-                      rewrite ^/streamer\?(.*)$ ?$1 break;
-                      rewrite ^/streamer/(.*)$ /$1 break;
-                      proxy_pass http://ustreamer;
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                      include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
-                    '';
+                fileSystems = {
+                  "/var/lib/kvmd/msd" = {
+                    depends = cfg.msdImageDepends;
+                    device = cfg.msdImagePath;
+                    fsType = "ext4";
+                    options = [
+                      "nodev"
+                      "nosuid"
+                      "noexec"
+                      "ro"
+                      "errors=remount-ro"
+                      "X-kvmd.otgmsd-user=kvmd"
+                    ];
                   };
                 };
-              };
-            };
-
-            # This is needed for nginx to be able to read other processes
-            # directories in `/run`. Else it will fail with (13: Permission denied)
-            systemd.services.nginx.serviceConfig.ProtectHome = false;
-
-            systemd.services.kvmd-fan = {
-              description = "PiKVM - A small fan controller daemon";
-              after = [ "systemd-modules-load.service" ];
-              serviceConfig = {
-                # kvmd-otg has to run as root to access /dev/mem
-                User = "root";
-                Group = "root";
-                Type = "simple";
-                Restart = "always";
-                RestartSec = 3;
-                ExecStart = ''
-                  ${self.packages.${pkgs.system}.kvmd-fan}/bin/kvmd-fan --config=/etc/kvmd/fan.ini ${cfg.fanArgs}
-                '';
-                TimeoutStopSec = 3;
-              };
-              wantedBy = [ "multi-user.target" ];
-            };
-            systemd.services.kvmd-otg = {
-              description = "PiKVM - OTG setup";
-              after = [ "systemd-modules-load.service" ];
-              # before = [ "kvmd.service" ];
-              serviceConfig = {
-                # kvmd-otg has to run as root to modify sysfs
-                User = "root";
-                Group = "root";
-                Type = "oneshot";
-                ExecStart = ''
-                  ${self.packages.${pkgs.system}.kvmd-otg}/bin/kvmd-otg start
-                '';
-                ExecStop = ''
-                  ${self.packages.${pkgs.system}.kvmd-otg}/bin/kvmd-otg stop
-                '';
-                RemainAfterExit = true;
-              };
-              wantedBy = [ "multi-user.target" ];
-            };
-          });
+              })
+            ]
+          );
         };
     };
 }
