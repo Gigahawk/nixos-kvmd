@@ -396,6 +396,7 @@
                 Create an ext4 image file for MSD emulation
 
                 IMPORTANT: Requires rebuilding the SD image
+                (must have an sd-image module enabled)
               '');
             msdImageSize = mkOption {
               type = types.str;
