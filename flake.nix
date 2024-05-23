@@ -108,6 +108,8 @@
             sed -i 's|/bin/true|${pkgs.coreutils}/bin/true|' kvmd-src/kvmd/apps/__init__.py
             sed -i "s|/usr/share/kvmd/extras|$out/src/extras|" kvmd-src/kvmd/apps/__init__.py
             sed -i "s|/usr/share/kvmd/keymaps|$out/src/contrib/keymaps|" kvmd-src/kvmd/apps/__init__.py
+            sed -i "s|/usr/share/kvmd/configs.default/kvmd/edid|$out/src/configs/kvmd/edid|" kvmd-src/kvmd/apps/edidconf/__init__.py
+            sed -i "s|/usr/bin/v4l2-ctl|${pkgs.v4l-utils}/bin/v4l2-ctl|" kvmd-src/kvmd/apps/edidconf/__init__.py
             sed -i "s|/usr/share/tessdata|${pkgs.tesseract}/share/tessdata|" kvmd-src/kvmd/apps/__init__.py
 
             # HACK: patch remount script to do umount then mount, using remount on an image file doesn't seem to work properly
@@ -221,10 +223,21 @@
           popd
           '';
         };
+        kvmd-edidconf = with import nixpkgs { inherit system; };
+        pkgs.writeShellApplication rec {
+          name = "kvmd-edidconf";
+
+          runtimeInputs = self.packages.${system}.kvmd-src.propagatedBuildInputs;
+
+          text = ''
+          KVMD_SRC=${self.packages.${system}.kvmd-src}/src
+          pushd $KVMD_SRC
+          python -m kvmd.apps.edidconf "$@"
+          popd
+          '';
+        };
       };
       devShell = pkgs.mkShell {
-        inputsFrom = [
-        ];
         nativeBuildInputs = [
           pythonWithPackages
           pkgs.libxkbcommon
@@ -232,6 +245,7 @@
           pkgs.libraspberrypi
           pkgs-ustreamer.ustreamer
           pkgs.janus-gateway
+          self.packages.${system}.kvmd-edidconf
         ];
       };
     }) // {
@@ -428,6 +442,7 @@
                   self.packages.${pkgs.system}.kvmd
                   self.packages.${pkgs.system}.kvmd-otg
                   self.packages.${pkgs.system}.kvmd-fan
+                  self.packages.${pkgs.system}.kvmd-edidconf
                 ];
 
                 services.udev = {
