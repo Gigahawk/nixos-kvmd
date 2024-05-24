@@ -6,6 +6,7 @@ ps: with ps; [
     libgpiod
     passlib
     pillow
+    psutil
     pygments
     pyotp
     pyyaml
