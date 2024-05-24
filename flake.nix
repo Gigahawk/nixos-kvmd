@@ -829,7 +829,7 @@
                 sdImage.populateRootCommands = ''
                   echo "Creating kvmd USB MSD image file"
                   mkdir -p ./files/$(${pkgs.coreutils}/bin/dirname ${cfg.msdImagePath})
-                  ${pkgs.coreutils}/bin/truncate --size=4G ./files/${cfg.msdImagePath}
+                  ${pkgs.coreutils}/bin/truncate --size=${cfg.msdImageSize} ./files/${cfg.msdImagePath}
                   ${pkgs.e2fsprogs}/bin/mkfs.ext4 ./files/media/msd.img
                 '';
                 fileSystems = {
