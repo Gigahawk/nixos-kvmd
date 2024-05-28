@@ -171,6 +171,10 @@
             # Patch hardcoded paths in kvmd-oled
             sed -i "s|/usr/share/kvmd-oled/ProggySquare.ttf|$out/src/packages/kvmd-oled/ProggySquare.ttf|" kvmd-packages-src/packages/kvmd-oled/kvmd-oled.py
 
+            # Patch kvmd-oled to display something when it is killed
+            # The reboot and shutdown services provided by pikvm don't seem to work properly
+            sed -i 's|stop_reason = ""|stop_reason = "Halting..."|' kvmd-packages-src/packages/kvmd-oled/kvmd-oled.py
+
             runHook postPatch
           '';
 
@@ -492,6 +496,35 @@
               default = [ "/" ];
               description = lib.mdDoc ''
                 Filesystems to mount before mounting the MSD emulation image
+              '';
+            };
+
+            enableOled = mkEnableOption (
+              lib.mdDoc ''
+                Enable support for showing device info on an SSD1306 I2C screen
+
+                Should be connected to I2C1.
+              '');
+            oledHeight = lib.mkOption {
+              type = lib.types.enum [ 32 64 ];
+              default = 32;
+              description = ''
+                Display height in pixels
+              '';
+            };
+            oledRotation = lib.mkOption {
+              type = lib.types.enum [ 0 1 2 3 ];
+              default = 0;
+              description = ''
+                Display orientation (multiply by 90 degrees)
+              '';
+            };
+            oledSplash = mkOption {
+              type = with types; either str path;
+              default = "pikvm.ppm";
+              apply = val: if builtins.isPath val then val else self.packages.${pkgs.system}.kvmd-packages-src + /src/packages/kvmd-oled/${val};
+              description = lib.mdDoc ''
+                The image to use for the splash screen
               '';
             };
           };
@@ -907,6 +940,28 @@
                       "X-kvmd.otgmsd-user=kvmd"
                     ];
                   };
+                };
+              })
+              (mkIf cfg.enableOled {
+                systemd.services.kvmd-oled = {
+                  description = "PiKVM - A small OLED daemon";
+                  after = [ "systemd-modules-load.service" ];
+                  unitConfig = {
+                    ConditionPathExists = "/dev/i2c-1";
+                  };
+                  serviceConfig = {
+                    Type = "simple";
+                    Restart = "always";
+                    RestartSec = 3;
+                    ExecStartPre = ''
+                      ${self.packages.${pkgs.system}.kvmd-oled}/bin/kvmd-oled --rotate=${toString cfg.oledRotation} --height=${toString cfg.oledHeight} --interval=3 --clear-on-exit --image=${cfg.oledSplash}
+                    '';
+                    ExecStart = ''
+                      ${self.packages.${pkgs.system}.kvmd-oled}/bin/kvmd-oled --rotate=${toString cfg.oledRotation} --height=${toString cfg.oledHeight}
+                    '';
+                    TimeoutStopSec = 3;
+                  };
+                  wantedBy = [ "multi-user.target" ];
                 };
               })
             ]
