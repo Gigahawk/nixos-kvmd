@@ -21,6 +21,7 @@
 
       kvmd-version = "v3.333";
       kvmd-fan-version = "v0.30";
+      kvmd-packages-version = "c77255958ac96ee51d6e999e1d1950081ed31244";
 
       helperScript = name: pkgs.writeText "kvmd-helper.py" ''
         import re
@@ -34,7 +35,8 @@
             sys.exit(main())
       '';
 
-      python = pkgs.python3;
+      pythonOverrides = pkgs.callPackage ./python-overrides.nix { };
+      python = pkgs.python3.override { packageOverrides = pythonOverrides; };
       pythonPackages = import ./python-requirements.nix;
       pythonWithPackages = python.withPackages pythonPackages;
     in {
@@ -134,6 +136,52 @@
             sed -i 's|/usr/bin/kvmd-helper-otgmsd-remount|${self.packages.${system}.kvmd-helper-otgmsd-remount}/bin/kvmd-helper-otgmsd-remount|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
           '';
         });
+        kvmd-packages-src = with import nixpkgs { inherit system; };
+        stdenv.mkDerivation rec {
+          pname = "kvmd-packages-src";
+          version = kvmd-packages-version;
+          srcs = [
+            (pkgs.fetchFromGitHub {
+              name = "kvmd-packages-src";
+              owner = "pikvm";
+              repo = "packages";
+              rev = kvmd-packages-version;
+              hash = "sha256-T6GeJjmxnvK+Gt6P2SKdr0J5upXOG0a4ocTWTohMyUw=";
+            })
+          ];
+
+          sourceRoot = ".";
+
+          propagatedBuildInputs = [
+            pythonWithPackages
+          ];
+
+          installPhase = ''
+            runHook preInstall
+
+            pushd kvmd-packages-src
+            find . -type f -exec install -Dm 755 "{}" "$out/src/{}" \;
+            popd
+
+            runHook postInstall
+          '';
+          patchPhase = ''
+            runHook prePatch
+
+            # Patch hardcoded paths in kvmd-oled
+            sed -i "s|/usr/share/kvmd-oled/ProggySquare.ttf|$out/src/packages/kvmd-oled/ProggySquare.ttf|" kvmd-packages-src/packages/kvmd-oled/kvmd-oled.py
+
+            runHook postPatch
+          '';
+
+          meta = with lib; {
+            homepage = "https://github.com/pikvm/packages";
+            description = "PiKVM Packages";
+            # Doesn't seem to have a license?
+            #license = licenses.gpl3;
+            platforms = platforms.all;
+          };
+        };
         kvmd-fan = with import nixpkgs { inherit system; };
         stdenv.mkDerivation rec {
           pname = "kvmd-fan";
@@ -233,6 +281,19 @@
           KVMD_SRC=${self.packages.${system}.kvmd-src}/src
           pushd $KVMD_SRC
           python -m kvmd.apps.edidconf "$@"
+          popd
+          '';
+        };
+        kvmd-oled = with import nixpkgs { inherit system; };
+        pkgs.writeShellApplication rec {
+          name = "kvmd-oled";
+
+          runtimeInputs = self.packages.${system}.kvmd-packages-src.propagatedBuildInputs;
+
+          text = ''
+          PACKAGES_SRC=${self.packages.${system}.kvmd-packages-src}/src
+          pushd $PACKAGES_SRC/packages/kvmd-oled
+          python kvmd-oled.py "$@"
           popd
           '';
         };
