@@ -35,6 +35,27 @@
             sys.exit(main())
       '';
 
+      # kvmd-oled uses socket.getfqdn() which just returns localhost.
+      # Patch it to use socket.gethostname() in this case
+      kvmd-oled-wrapper = pkgs.writeText "kvmd-oled-wrapper.py" ''
+        import socket
+        import importlib
+        kvmd_oled = importlib.import_module("kvmd-oled")
+
+        _getfqdn = socket.getfqdn
+
+        def getfqdn():
+            out = _getfqdn()
+            if "localhost" in out:
+                out = socket.gethostname()
+            return out
+
+        socket.getfqdn = getfqdn
+
+        if __name__ == "__main__":
+            kvmd_oled.main()
+      '';
+
       pythonOverrides = pkgs.callPackage ./python-overrides.nix { };
       python = pkgs.python3.override { packageOverrides = pythonOverrides; };
       pythonPackages = import ./python-requirements.nix;
@@ -161,6 +182,7 @@
 
             pushd kvmd-packages-src
             find . -type f -exec install -Dm 755 "{}" "$out/src/{}" \;
+            install -Dm 755 "${kvmd-oled-wrapper}" "$out/src/packages/kvmd-oled/kvmd-oled-wrapper.py"
             popd
 
             runHook postInstall
@@ -297,7 +319,7 @@
           text = ''
           PACKAGES_SRC=${self.packages.${system}.kvmd-packages-src}/src
           pushd $PACKAGES_SRC/packages/kvmd-oled
-          python kvmd-oled.py "$@"
+          python kvmd-oled-wrapper.py "$@"
           popd
           '';
         };
