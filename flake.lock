@@ -20,11 +20,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1715087517,
-        "narHash": "sha256-CLU5Tsg24Ke4+7sH8azHWXKd0CFd4mhLWfhYgUiDBpQ=",
+        "lastModified": 1719848872,
+        "narHash": "sha256-H3+EC5cYuq+gQW8y0lSrrDZfH71LB4DAf+TDFyvwCNA=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "b211b392b8486ee79df6cdfb1157ad2133427a29",
+        "rev": "00d80d13810dbfea8ab4ed1009b09100cca86ba8",
         "type": "github"
       },
       "original": {
@@ -33,44 +33,10 @@
         "type": "indirect"
       }
     },
-    "nixpkgs-ustreamer": {
-      "locked": {
-        "lastModified": 1714553215,
-        "narHash": "sha256-vLFtS2WyJopiYTNbQ0+eBd8mFWb2wXH56V8AoQy5nko=",
-        "owner": "r-ryantm",
-        "repo": "nixpkgs",
-        "rev": "651e173f70c9ccba75b1a02a8e216cdd99cb85f2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "r-ryantm",
-        "ref": "auto-update/ustreamer",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "nixpkgs-wiringpi": {
-      "locked": {
-        "lastModified": 1715231385,
-        "narHash": "sha256-eNlxOv5ydSwoKW5sVtVB+6ARwjCawRN0JN5aaTlgTzA=",
-        "owner": "Gigahawk",
-        "repo": "nixpkgs",
-        "rev": "0fee6d55a69ba1e8b7ce9317d6df777a4dcec3f3",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Gigahawk",
-        "ref": "update-wiringpi",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs",
-        "nixpkgs-ustreamer": "nixpkgs-ustreamer",
-        "nixpkgs-wiringpi": "nixpkgs-wiringpi"
+        "nixpkgs": "nixpkgs"
       }
     },
     "systems": {

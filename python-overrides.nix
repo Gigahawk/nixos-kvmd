@@ -1,4 +1,4 @@
-{ pkgs, fetchurl, fetchgit, fetchhg }:
+{ pkgs, fetchurl, fetchgit, fetchhg, fetchFromGitHub }:
 
 self: super: {
   luma-oled = super.buildPythonPackage rec {
@@ -18,5 +18,24 @@ self: super: {
       sha256 = "sha256-Xsy7395LjNkRPRvTVb5qKQQcCy5/VuGHOk7tNW6fxYI=";
     };
     format = "wheel";
+  };
+  # rpi-gpio2 was removed by nixpkgs#315371
+  rpi-gpio2 = super.buildPythonPackage rec {
+    pname = "rpi-gpio2";
+    version = "0.4.0";
+    format = "setuptools";
+
+    # PyPi source does not work for some reason
+    src = fetchFromGitHub {
+      owner = "underground-software";
+      repo = "RPi.GPIO2";
+      rev = "refs/tags/v${version}";
+      hash = "sha256-CNnej67yTh3C8n4cCA7NW97rlfIDrrlepRNDkv+BUeY=";
+    };
+
+    propagatedBuildInputs = [ super.libgpiod ];
+
+    # Disable checks because they need to run on the specific platform
+    doCheck = false;
   };
 }

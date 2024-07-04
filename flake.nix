@@ -3,21 +3,15 @@
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
-    # HACK: ustreamer 6.11 is pending merge of nixpkgs#308216
-    nixpkgs-ustreamer.url = "github:r-ryantm/nixpkgs/auto-update/ustreamer";
-    # HACK: wiringpi is really old on nixpkgs
-    nixpkgs-wiringpi.url = "github:Gigahawk/nixpkgs/update-wiringpi";
     flake-utils = {
       url = "github:numtide/flake-utils";
     };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-ustreamer, nixpkgs-wiringpi, flake-utils, ... }:
+  outputs = { self, nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = nixpkgs.legacyPackages.${system};
-      pkgs-ustreamer = nixpkgs-ustreamer.legacyPackages.${system};
-      pkgs-wiringpi = nixpkgs-wiringpi.legacyPackages.${system};
 
       kvmd-version = "v3.333";
       kvmd-fan-version = "v0.30";
@@ -84,8 +78,7 @@
             pkgs.libxkbcommon
             pkgs.tesseract
             pkgs.libraspberrypi
-            #pkgs.ustreamer
-            pkgs-ustreamer.ustreamer
+            pkgs.ustreamer
             pkgs.janus-gateway
             pkgs.glibc
             pkgs.coreutils
@@ -116,8 +109,7 @@
             sed -i 's|ctypes.util.find_library("c")|"${pkgs.glibc}/lib/libc.so.6"|' kvmd-src/kvmd/libc.py
 
             # Patch some hardcoded paths in kvmd
-            #sed -i 's|/usr/bin/ustreamer|${pkgs.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
-            sed -i 's|/usr/bin/ustreamer|${pkgs-ustreamer.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
+            sed -i 's|/usr/bin/ustreamer|${pkgs.ustreamer}/bin/ustreamer|' kvmd-src/configs/kvmd/main/*.yaml
             sed -i 's|/usr/bin/sudo|/run/wrappers/bin/sudo|' kvmd-src/kvmd/apps/__init__.py
             sed -i 's|/usr/bin/sudo|/run/wrappers/bin/sudo|' kvmd-src/kvmd/plugins/msd/otg/__init__.py
             sed -i 's|/usr/bin/vcgencmd|${pkgs.libraspberrypi}/bin/vcgencmd|' kvmd-src/kvmd/apps/__init__.py
@@ -227,8 +219,7 @@
           ];
 
           buildInputs = [
-            pkgs-wiringpi.wiringpi
-            #pkgs.wiringpi
+            pkgs.wiringpi
             pkgs.libgpiod
             pkgs.iniparser
             pkgs.libmicrohttpd
@@ -330,7 +321,7 @@
           pkgs.libxkbcommon
           pkgs.tesseract
           pkgs.libraspberrypi
-          pkgs-ustreamer.ustreamer
+          pkgs.ustreamer
           pkgs.janus-gateway
           self.packages.${system}.kvmd-edidconf
         ];
