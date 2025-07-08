@@ -3,6 +3,7 @@ ps: with ps; [
     aiofiles
     aiohttp
     async-lru
+    bcrypt
     dbus-next
     libgpiod
     passlib
