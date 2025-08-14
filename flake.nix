@@ -898,7 +898,7 @@
                     Restart = "on-failure";
                     RestartSec = 5;
                     ExecStart = ''
-                      ${pkgs.v4l-utils}/bin/v4l2-ctl --device=/dev/kvmd-video --set-edid=file=${cfg.edidConfig} --fix-edid-checksums --info-edid
+                      ${pkgs.v4l-utils}/bin/v4l2-ctl --device=/dev/kvmd-video --set-edid=file=${cfg.edidConfig} --info-edid
                     '';
                     ExecStop= ''
                       ${pkgs.v4l-utils}/bin/v4l2-ctl --device=/dev/kvmd-video --clear-edid
