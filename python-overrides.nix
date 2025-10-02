@@ -38,8 +38,4 @@ self: super: {
     # Disable checks because they need to run on the specific platform
     doCheck = false;
   };
-  proxy-py = super.proxy-py.overrideAttrs (old: {
-    # Checks appear to fail when run through qemu-user?
-    doCheck = false;
-  });
 }
