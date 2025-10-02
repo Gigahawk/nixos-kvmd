@@ -51,7 +51,7 @@
       '';
 
       pythonOverrides = pkgs.callPackage ./python-overrides.nix { };
-      python = pkgs.python311.override { packageOverrides = pythonOverrides; };
+      python = pkgs.python312.override { packageOverrides = pythonOverrides; };
       pythonPackages = import ./python-requirements.nix;
       pythonWithPackages = python.withPackages pythonPackages;
     in {
