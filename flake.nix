@@ -127,6 +127,12 @@
             sed -i "s|/usr/bin/v4l2-ctl|${pkgs.v4l-utils}/bin/v4l2-ctl|" kvmd-src/kvmd/apps/edidconf/__init__.py
             sed -i "s|/usr/share/tessdata|${pkgs.tesseract}/share/tessdata|" kvmd-src/kvmd/apps/__init__.py
 
+            # HACK: patch keysym.py to not use find_module (deprecated on python 3.12+)
+            sed -i "s|loader = finder.find_module(module_name)|loader = finder.find_spec(module_name)|" kvmd-src/kvmd/keyboard/keysym.py
+            sed -i "s|module = loader.load_module(module_name)|module = importlib.util.module_from_spec(loader); loader.loader.exec_module(module)|" kvmd-src/kvmd/keyboard/keysym.py
+
+
+
             # HACK: patch remount script to do umount then mount, using remount on an image file doesn't seem to work properly
             sed -i \
               's|subprocess.check_call(\["/bin/mount", "--options", f"remount,{mode}", path\])|subprocess.check_call(["${pkgs.util-linux}/bin/umount", path]);subprocess.check_call(["${pkgs.util-linux}/bin/mount", "--options", f"{mode}", path])|' \
