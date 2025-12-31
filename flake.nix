@@ -363,7 +363,7 @@
 
             ipmiPasswordFile = mkOption {
               type = types.path;
-              default = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/ipmipasswd;
+              default = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/kvmd/ipmipasswd;
               description = mdDoc ''
                 Path to the IPMI credentials file
 
@@ -374,7 +374,7 @@
 
             vncPasswordFile = mkOption {
               type = types.path;
-              default = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/vncpasswd;
+              default = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/kvmd/vncpasswd;
               description = mdDoc ''
                 Path to the VNCAuth credentials file
 
@@ -399,7 +399,7 @@
 
             htPasswordFile = mkOption {
               type = types.path;
-              default = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/htpasswd;
+              default = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/kvmd/htpasswd;
               description = mdDoc ''
                 Path to the htpasswd file
 
@@ -410,7 +410,7 @@
 
             totpSecretFile = mkOption {
               type = types.path;
-              default = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/totp.secret;
+              default = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/kvmd/totp.secret;
               description = mdDoc ''
                 Path to a file containing a base32 encoded TOTP secret
               '';
@@ -448,7 +448,7 @@
             baseConfig = mkOption {
               type = with types; either str path;
               default = "v4plus-hdmi-rpi4.yaml";
-              apply = val: if builtins.isPath val then val else self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/main/${val};
+              apply = val: if builtins.isPath val then val else self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/kvmd/main/${val};
               description = lib.mdDoc ''
                 The base config file to use for kvmd
               '';
@@ -465,7 +465,7 @@
             fanConfig = mkOption {
               type = with types; either str path;
               default = "v4plus-hdmi.ini";
-              apply = val: if builtins.isPath val then val else self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/fan/${val};
+              apply = val: if builtins.isPath val then val else self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/kvmd/fan/${val};
               description = lib.mdDoc ''
                 The config file to use for kvmd fan
               '';
@@ -474,7 +474,7 @@
             edidConfig = mkOption {
               type = with types; either str path;
               default = "v4plus-hdmi.hex";
-              apply = val: if builtins.isPath val then val else self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/edid/${val};
+              apply = val: if builtins.isPath val then val else self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/kvmd/edid/${val};
               description = lib.mdDoc ''
                 The EDID hex file to use for HDMI to CSI adapters
               '';
@@ -483,7 +483,7 @@
             udevRules = mkOption {
               type = with types; either str path;
               default = "v4plus-hdmi-rpi4.rules";
-              apply = val: if builtins.isPath val then val else self.packages.${pkgs.system}.kvmd-src + /src/configs/os/udev/${val};
+              apply = val: if builtins.isPath val then val else self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/os/udev/${val};
               description = lib.mdDoc ''
                 The config file to use for kvmd fan
               '';
@@ -541,7 +541,7 @@
             oledSplash = mkOption {
               type = with types; either str path;
               default = "pikvm.ppm";
-              apply = val: if builtins.isPath val then val else self.packages.${pkgs.system}.kvmd-packages-src + /src/packages/kvmd-oled/${val};
+              apply = val: if builtins.isPath val then val else self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-packages-src + /src/packages/kvmd-oled/${val};
               description = lib.mdDoc ''
                 The image to use for the splash screen
               '';
@@ -552,10 +552,10 @@
             mkMerge [
               {
                 environment.systemPackages = [
-                  self.packages.${pkgs.system}.kvmd
-                  self.packages.${pkgs.system}.kvmd-otg
-                  self.packages.${pkgs.system}.kvmd-fan
-                  self.packages.${pkgs.system}.kvmd-edidconf
+                  self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd
+                  self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-otg
+                  self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-fan
+                  self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-edidconf
                 ];
 
                 services.udev = {
@@ -563,7 +563,7 @@
                   extraRules = lib.strings.concatLines [
                     # Seems like this has something to do with allowing access
                     # to an RP2040 acting as an HID emulator
-                    (builtins.readFile (self.packages.${pkgs.system}.kvmd-src + /src/configs/os/udev/common.rules))
+                    (builtins.readFile (self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/os/udev/common.rules))
                     # User selected set of rules
                     (builtins.readFile cfg.udevRules)
                     # Allow video user to access RPi VideoCore interface
@@ -623,16 +623,16 @@
                     source = cfg.fanConfig;
                   };
                   "kvmd/logging.yaml" = {
-                    source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/logging.yaml;
+                    source = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/kvmd/logging.yaml;
                   };
                   "kvmd/auth.yaml" = {
-                    source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/auth.yaml;
+                    source = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/kvmd/auth.yaml;
                   };
                   "kvmd/meta.yaml" = {
-                    source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/meta.yaml;
+                    source = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/kvmd/meta.yaml;
                   };
                   "kvmd/web.css" = {
-                    source = self.packages.${pkgs.system}.kvmd-src + /src/configs/kvmd/web.css;
+                    source = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/kvmd/web.css;
                   };
                   "kvmd/ipmipasswd" = {
                     source = cfg.ipmiPasswordFile;
@@ -659,7 +659,7 @@
                   extraRules = [{
                     commands = [
                       {
-                        command = "${self.packages.${pkgs.system}.kvmd-helper-otgmsd-remount}/bin/kvmd-helper-otgmsd-remount";
+                        command = "${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-helper-otgmsd-remount}/bin/kvmd-helper-otgmsd-remount";
                         options = [ "NOPASSWD" ];
                       }
                     ];
@@ -706,25 +706,25 @@
                         '';
                       };
                       "/" = {
-                        root = self.packages.${pkgs.system}.kvmd-src + /src/web;
+                        root = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/web;
                         extraConfig = ''
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-login.conf};
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-login.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
                         '';
                       };
                       "@login" = {
                         return = "302 /login";
                       };
                       "/login" = {
-                        root = self.packages.${pkgs.system}.kvmd-src + /src/web;
+                        root = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/web;
                         extraConfig = ''
                           auth_request off;
                         '';
                       };
                       "/share" = {
-                        root = self.packages.${pkgs.system}.kvmd-src + /src/web;
+                        root = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/web;
                         extraConfig = ''
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
                           auth_request off;
                         '';
                       };
@@ -735,16 +735,16 @@
                         '';
                       };
                       "= /favicon.ico" = {
-                        alias = self.packages.${pkgs.system}.kvmd-src + /src/web/favicon.ico;
+                        alias = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/web/favicon.ico;
                         extraConfig = ''
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
                           auth_request off;
                         '';
                       };
                       "= /robots.txt" = {
-                        alias = self.packages.${pkgs.system}.kvmd-src + /src/web/robots.txt;
+                        alias = self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/web/robots.txt;
                         extraConfig = ''
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-nocache.conf};
                           auth_request off;
                         '';
                       };
@@ -753,8 +753,8 @@
                           rewrite ^/api/ws$ /ws break;
                           rewrite ^/api/ws\?(.*)$ /ws?$1 break;
                           proxy_pass http://kvmd;
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-websocket.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-websocket.conf};
                           auth_request off;
                         '';
                       };
@@ -763,8 +763,8 @@
                           rewrite ^/api/hid/print$ /hid/print break;
                           rewrite ^/api/hid/print\?(.*)$ /hid/print?$1 break;
                           proxy_pass http://kvmd;
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-bigpost.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-bigpost.conf};
                           auth_request off;
                         '';
                       };
@@ -773,8 +773,8 @@
                           rewrite ^/api/msd/read$ /msd/read break;
                           rewrite ^/api/msd/read\?(.*)$ /msd/read?$1 break;
                           proxy_pass http://kvmd;
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
                           proxy_read_timeout 7d;
                           auth_request off;
                         '';
@@ -784,8 +784,8 @@
                           rewrite ^/api/msd/write_remote$ /msd/write_remote break;
                           rewrite ^/api/msd/write_remote\?(.*)$ /msd/write_remote?$1 break;
                           proxy_pass http://kvmd;
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
                           proxy_read_timeout 7d;
                           auth_request off;
                         '';
@@ -795,8 +795,8 @@
                           rewrite ^/api/msd/write$ /msd/write break;
                           rewrite ^/api/msd/write\?(.*)$ /msd/write?$1 break;
                           proxy_pass http://kvmd;
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-bigpost.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-bigpost.conf};
                           auth_request off;
                         '';
                       };
@@ -805,8 +805,8 @@
                           rewrite ^/api/log$ /log break;
                           rewrite ^/api/log\?(.*)$ /log?$1 break;
                           proxy_pass http://kvmd;
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
                           proxy_read_timeout 7d;
                           auth_request off;
                         '';
@@ -816,7 +816,7 @@
                           rewrite ^/api$ / break;
                           rewrite ^/api/(.*)$ /$1 break;
                           proxy_pass http://kvmd;
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
                           auth_request off;
                         '';
                       };
@@ -826,8 +826,8 @@
                           rewrite ^/streamer\?(.*)$ ?$1 break;
                           rewrite ^/streamer/(.*)$ /$1 break;
                           proxy_pass http://ustreamer;
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
                         '';
                       };
                       "/redfish" = {
@@ -836,8 +836,8 @@
                           rewrite ^/streamer\?(.*)$ ?$1 break;
                           rewrite ^/streamer/(.*)$ /$1 break;
                           proxy_pass http://ustreamer;
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
-                          include ${self.packages.${pkgs.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-proxy.conf};
+                          include ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-src + /src/configs/nginx/loc-nobuffering.conf};
                         '';
                       };
                     };
@@ -859,7 +859,7 @@
                     Restart = "always";
                     RestartSec = 3;
                     ExecStart = ''
-                      ${self.packages.${pkgs.system}.kvmd-fan}/bin/kvmd-fan --config=/etc/kvmd/fan.ini ${cfg.fanArgs}
+                      ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-fan}/bin/kvmd-fan --config=/etc/kvmd/fan.ini ${cfg.fanArgs}
                     '';
                     TimeoutStopSec = 3;
                   };
@@ -875,10 +875,10 @@
                     Group = "root";
                     Type = "oneshot";
                     ExecStart = ''
-                      ${self.packages.${pkgs.system}.kvmd-otg}/bin/kvmd-otg start
+                      ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-otg}/bin/kvmd-otg start
                     '';
                     ExecStop = ''
-                      ${self.packages.${pkgs.system}.kvmd-otg}/bin/kvmd-otg stop
+                      ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-otg}/bin/kvmd-otg stop
                     '';
                     RemainAfterExit = true;
                   };
@@ -929,10 +929,10 @@
                     AmbientCapabilities = "CAP_NET_RAW";
 
                     ExecStart = ''
-                      ${self.packages.${pkgs.system}.kvmd}/bin/kvmd --run
+                      ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd}/bin/kvmd --run
                     '';
                     ExecStopPost = ''
-                      ${self.packages.${pkgs.system}.kvmd-cleanup}/bin/kvmd-cleanup --run
+                      ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-cleanup}/bin/kvmd-cleanup --run
                     '';
                     TimeoutStopSec = 10;
                     KillMode = "mixed";
@@ -975,10 +975,10 @@
                     Restart = "always";
                     RestartSec = 3;
                     ExecStartPre = ''
-                      ${self.packages.${pkgs.system}.kvmd-oled}/bin/kvmd-oled --rotate=${toString cfg.oledRotation} --height=${toString cfg.oledHeight} --interval=3 --clear-on-exit --image=${cfg.oledSplash}
+                      ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-oled}/bin/kvmd-oled --rotate=${toString cfg.oledRotation} --height=${toString cfg.oledHeight} --interval=3 --clear-on-exit --image=${cfg.oledSplash}
                     '';
                     ExecStart = ''
-                      ${self.packages.${pkgs.system}.kvmd-oled}/bin/kvmd-oled --rotate=${toString cfg.oledRotation} --height=${toString cfg.oledHeight}
+                      ${self.packages.${pkgs.stdenv.hostPlatform.system}.kvmd-oled}/bin/kvmd-oled --rotate=${toString cfg.oledRotation} --height=${toString cfg.oledHeight}
                     '';
                     TimeoutStopSec = 3;
                   };
