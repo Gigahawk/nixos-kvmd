@@ -1,0 +1,28 @@
+diff --git a/web/login/index.html b/web/login/index.html
+index 26b07640..93595f17 100644
+--- a/web/login/index.html
++++ b/web/login/index.html
+@@ -71,6 +71,9 @@
+                 <hr>
+               </td>
+             </tr>
++            <tr>
++              <td id="err-msg" colspan="2"></td>
++            </tr>
+             <tr>
+               <td></td>
+               <td>
+diff --git a/web/share/js/login/main.js b/web/share/js/login/main.js
+index 41ed6141..a38a8f14 100644
+--- a/web/share/js/login/main.js
++++ b/web/share/js/login/main.js
+@@ -55,7 +55,8 @@ function __login() {
+ 			if (http.status === 200) {
+ 				document.location.href = "/";
+ 			} else if (http.status === 403) {
+-				wm.error("Invalid credentials").then(__tryAgain);
++				$("err-msg").setHTML("Error: Invalid credentials")
++				__tryAgain()
+ 			} else {
+ 				let error = "";
+ 				if (http.status === 400) {
