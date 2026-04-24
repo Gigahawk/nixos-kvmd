@@ -103,6 +103,8 @@
           patchPhase = ''
             runHook prePatch
 
+            patch -p1 -d kvmd-src < ${./patches/kvmd/disable-login-fail-window.patch}
+
             # HACK: patch ctypes.util.find_library calls because nixpkgs#7307 is somehow not fixed yet
             sed -i 's|ctypes.util.find_library("tesseract")|"${pkgs.tesseract}/lib/libtesseract.so.5"|' kvmd-src/kvmd/apps/kvmd/ocr.py
             sed -i 's|ctypes.util.find_library("xkbcommon")|"${pkgs.libxkbcommon}/lib/libxkbcommon.so.0"|' kvmd-src/kvmd/keyboard/printer.py
